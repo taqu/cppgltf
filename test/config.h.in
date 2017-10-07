@@ -1,0 +1,17 @@
+#ifndef INC_CONFIG_H__
+#define INC_CONFIG_H__
+/**
+@file config.h
+@author t-sakai
+@date 2017/09/21 create
+*/
+#include "catch.hpp"
+#include "../glTF.h"
+
+#define DATA_ROOT "${GLTF_DATA_ROOT}"
+
+#cmakedefine TEST_BOX
+#cmakedefine TEST_BOOMBOX
+
+#cmakedefine TEST_OUT
+#endif //INC_CONFIG_H__
