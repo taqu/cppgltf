@@ -58,6 +58,9 @@ namespace gltf
 
     typedef char Char;
     typedef bool boolean;
+
+    typedef std::size_t size_type;
+
 #ifdef _MSC_VER
     typedef s32 off_t;
     #ifndef GLTF_FSEEK
@@ -195,8 +198,10 @@ namespace gltf
         String& operator=(const Char* str);
         inline void assign(const Char* str);
         void assign(s32 length, const Char* str);
+        void push_back(Char c);
 
         boolean operator==(const String& rhs) const;
+        boolean startWith(const Char* str) const;
 
         friend boolean operator==(const String& lhs, const Char* rhs);
         friend boolean operator==(const Char* lhs, const String& rhs);
@@ -1113,6 +1118,16 @@ namespace gltf
 #define GLTF_CAMERA_TYPE_NAME_PERSPECTIVE "perspective"
 #define GLTF_CAMERA_TYPE_NAME_ORTHOGRAPHIC "orthographic"
 
+    enum GLTF_FILE
+    {
+        GLTF_FILE_AsIs =0,
+        //GLTF_FILE_Embedded,
+        //GLTF_FILE_File,
+        GLTF_FILE_GLB,
+    };
+
+    static const s32 GLB_ALIGNMENT = 4;
+
     class Flags
     {
     public:
@@ -1274,7 +1289,6 @@ namespace gltf
     {
     public:
         void initialize();
-        void terminate();
 
         boolean checkRequirements() const;
 
@@ -1283,8 +1297,11 @@ namespace gltf
         String name_;
         Extensions extensions_;
         Extras extras_;
-        void* data_;
+        u8* data_;
     };
+
+    boolean load(Buffer& buffer, const String& directory);
+    boolean save(String& uri, const Buffer& buffer, const String& directory);
 
     class BufferView
     {
@@ -1560,7 +1577,13 @@ namespace gltf
         ~glTF();
 
         void initialize();
+        void setDirectory(const Char* directory);
+        boolean loadBuffers();
+        boolean loadGLBBuffers();
+
         boolean checkRequirements() const;
+
+        String directory_;
 
         Array<String> extensionsUsed_;
         Array<String> extensionsRequired_;
@@ -1581,6 +1604,24 @@ namespace gltf
         Array<Texture> textures_;
         Extensions extensions_;
         Extras extras_;
+
+        void allocate(u32 size);
+        u32 size() const;
+        const u8* getBin(u32 offset) const;
+        u8* getBin(u32 offset);
+
+        void allocateGLB(u32 size);
+        u32 sizeGLB() const;
+        const u8* getGLB(u32 offset) const;
+        u8* getGLB(u32 offset);
+    private:
+        glTF(const glTF&) =delete;
+        glTF& operator=(const glTF&) =delete;
+
+        u32 size_;
+        u8* bin_;
+        u32 glbSize_;
+        u8* glbBin_;
     };
 
     //---------------------------------------------------------------
@@ -1592,6 +1633,7 @@ namespace gltf
     {
     public:
         glTFHandler();
+        glTFHandler(const Char* directory);
         virtual ~glTFHandler();
 
         inline const glTF& get() const;
@@ -1674,26 +1716,28 @@ namespace gltf
         static const u32 Version = 2;
         static const u32 ChunkType_JSON = 0x4E4F534AU;
         static const u32 ChunkType_BIN  = 0x004E4942U;
-        struct Chank
+        struct Header
+        {
+            u32 magic_;
+            u32 version_;
+            u32 length_;
+        };
+
+        struct Chunk
         {
             u32 length_;
             u32 type_;
-            u8* data_;
         };
 
         GLBReader(IStream& istream, GLBEventHandler& handler);
         ~GLBReader();
 
         bool read(s32 flags=0);
-        const u8* getBin(u32 offset) const;
     private:
-        bool readChunkJSON();
-        bool readChunkBIN();
+        bool readChunkJSON(u32& size);
+        bool readChunkBIN(u32& size);
 
         GLBEventHandler& handler_;
-
-        u32 length_;
-        u8* bin_;
     };
 
 
@@ -1706,6 +1750,7 @@ namespace gltf
     {
     public:
         static const u32 Flag_Format = 0x01U<<0; 
+
         struct Indent
         {
             Indent(s32& indent)
@@ -1722,8 +1767,12 @@ namespace gltf
 
         glTFWriter(OStream& ostream);
         ~glTFWriter();
-        
-        bool write(const glTF& gltf, u32 flags);
+
+        /**
+        @param gltf
+        @param type ... file type
+        */
+        bool write(const glTF& gltf, GLTF_FILE type, u32 flags);
     private:
         void printIndent();
         void printLine();
@@ -1820,8 +1869,10 @@ namespace gltf
         bool print(const TextureInfo& textureInfo);
 
         Flags flags_;
+        const glTF* gltf_;
         s32 indent_;
-        OStream& ostream_;
+        OStream& ostream0_;
+        OStream* ostream1_;
     };
 
     template<class T>
@@ -2235,6 +2286,15 @@ namespace
         buffer[length_] = '\0';
     }
 
+    void String::push_back(Char c)
+    {
+        expandBuffer(length_+1);
+        Char* buffer = getBuffer();
+        buffer[length_] = c;
+        ++length_;
+        buffer[length_] = '\0';
+    }
+
     void String::initBuffer(s32 length)
     {
         if(length<ExpandSize){
@@ -2293,6 +2353,21 @@ namespace
     boolean String::operator==(const String& rhs) const
     {
         return (length() == rhs.length())? (0 == ::strncmp(c_str(), rhs.c_str(), length())) : false;
+    }
+
+    boolean String::startWith(const Char* str) const
+    {
+        GLTF_ASSERT(NULL != str);
+        const Char* buffer = getBuffer();
+        for(s32 i=0; i<length(); ++i){
+            if(str[i] == '\0'){
+                return true;
+            }
+            if(buffer[i] != str[i]){
+                return false;
+            }
+        }
+        return false;
     }
 
     boolean operator==(const String& lhs, const Char* rhs)
@@ -2575,7 +2650,7 @@ namespace
         if(pos<0){
             return false;
         }
-        return 0<write(strlen(str), reinterpret_cast<const u8*>(str));
+        return 0<write(static_cast<s32>(strlen(str)), reinterpret_cast<const u8*>(str));
     }
 
     OSStream& OSStream::operator=(OSStream&& rhs)
@@ -4034,18 +4109,83 @@ namespace
         data_ = NULL;
     }
 
-    void Buffer::terminate()
-    {
-        GLTF_FREE(data_);
-        data_ = NULL;
-    }
-
     boolean Buffer::checkRequirements() const
     {
         if(byteLength_<0){
             return false;
         }
         return true;
+    }
+
+namespace
+{
+    static const Char* Base64URL = "data:application/octet-stream;base64,";
+    FILE* open(const String& uri, const String& directory, const Char* mode)
+    {
+        static const s32 MaxBuffer = 128;
+        s32 length = uri.length() + directory.length();
+        Char buffer[MaxBuffer];
+        Char* buff;
+        if(length<MaxBuffer){
+            buff = buffer;
+        }else{
+            buff = (Char*)GLTF_MALLOC(sizeof(Char)*(length+1));
+        }
+        ::memcpy(buff, directory.c_str(), directory.length());
+        ::memcpy(buff+directory.length(), uri.c_str(), uri.length());
+        buff[length] = '\0';
+
+        FILE* file = fopen_s(buff, mode);
+        if(buff != buffer){
+            GLTF_FREE(buff);
+        }
+        return file;
+    }
+}
+    boolean load(Buffer& buffer, const String& directory)
+    {
+        static const s32 l = static_cast<s32>(::strlen(Base64URL));
+        if(buffer.uri_.startWith(Base64URL)){
+            s32 dl = decodeBase64(buffer.data_, buffer.byteLength_, reinterpret_cast<const s8*>(buffer.uri_.c_str()+l));
+            return dl == buffer.byteLength_;
+        }
+
+        FILE* file = open(buffer.uri_, directory, "rb");
+        if(NULL == file){
+            return false;
+        }
+        size_type ret = fread(buffer.data_, buffer.byteLength_, 1, file);
+        fclose(file);
+        return 0<ret;
+    }
+
+    boolean save(String& uri, const Buffer& buffer, const String& directory)
+    {
+        if(buffer.uri_.length()<=0){
+            return true;
+        }
+
+        static const s32 l = static_cast<s32>(::strlen(Base64URL));
+        if(buffer.uri_.startWith(Base64URL)){
+            s32 length = getLengthEncodedBase64(buffer.byteLength_);
+            s8* buff = (s8*)GLTF_MALLOC(length+l+1);
+            ::memcpy(buff, buffer.uri_.c_str(), l);
+            encodeBase64(buff+l, length, buffer.data_);
+            length +=l;
+            buff[length] = '\0';
+            uri.assign(length, reinterpret_cast<const Char*>(buff));
+            GLTF_FREE(buff);
+            return true;
+        }
+
+        FILE* file = open(buffer.uri_, directory, "wb");
+        if(NULL == file){
+            return false;
+        }
+        size_type ret = fwrite(buffer.data_, buffer.byteLength_, 1, file);
+        fclose(file);
+        uri.assign(buffer.uri_.length(), buffer.uri_.c_str());
+        return 0<ret;
     }
 
     //---------------------------------------------------------------
@@ -4380,14 +4520,17 @@ namespace
 
     //---------------------------------------------------------------
     glTF::glTF()
+        :size_(0)
+        ,bin_(NULL)
+        ,glbSize_(0)
+        ,glbBin_(NULL)
     {
     }
 
     glTF::~glTF()
     {
-        for(s32 i=0; i<buffers_.size(); ++i){
-            buffers_[i].terminate();
-        }
+        GLTF_FREE(bin_);
+        GLTF_FREE(glbBin_);
     }
 
     void glTF::initialize()
@@ -4411,6 +4554,58 @@ namespace
         textures_.clear();
         extensions_.initialize();
         extras_.initialize();
+    }
+
+    void glTF::setDirectory(const Char* directory)
+    {
+        directory_.clear();
+        if(NULL == directory){
+            return;
+        }
+        s32 len = static_cast<s32>(::strlen(directory));
+        if(len<=0){
+            return;
+        }
+        directory_.assign(len, directory);
+        if('/' != directory[len-1]){
+            directory_.push_back('/');
+        }
+    }
+
+    boolean glTF::loadBuffers()
+    {
+        //Buffers
+        u32 byteLength = 0;
+        for(s32 i=0; i<buffers_.size(); ++i){
+            if(buffers_[i].uri_.length()<=0){
+                continue;
+            }
+            byteLength += buffers_[i].byteLength_;
+        }
+        allocate(byteLength);
+        byteLength = 0;
+        for(s32 i=0; i<buffers_.size(); ++i){
+            if(0<buffers_[i].uri_.length()){
+                buffers_[i].data_ = bin_+byteLength;
+                if(!load(buffers_[i], directory_)){
+                    return false;
+                }
+                byteLength += buffers_[i].byteLength_;
+            }
+        }
+        return true;
+    }
+
+    boolean glTF::loadGLBBuffers()
+    {
+        u32 glbOffset = 0;
+        for(s32 i=0; i<buffers_.size(); ++i){
+            if(buffers_[i].uri_.length()<=0){
+                buffers_[i].data_ = getGLB(glbOffset);
+                glbOffset += buffers_[i].byteLength_;
+            }
+        }
+        return true;
     }
 
     boolean glTF::checkRequirements() const
@@ -4486,6 +4681,54 @@ namespace
         return true;
     }
 
+    void glTF::allocate(u32 size)
+    {
+        GLTF_FREE(bin_);
+        size_ = size;
+        bin_ = (u8*)GLTF_MALLOC(size_);
+    }
+
+    u32 glTF::size() const
+    {
+        return size_;
+    }
+
+    const u8* glTF::getBin(u32 offset) const
+    {
+        GLTF_ASSERT(offset<size_);
+        return bin_+offset;
+    }
+
+    u8* glTF::getBin(u32 offset)
+    {
+        GLTF_ASSERT(offset<size_);
+        return bin_+offset;
+    }
+
+    void glTF::allocateGLB(u32 size)
+    {
+        GLTF_FREE(glbBin_);
+        glbSize_ = size;
+        glbBin_ = (u8*)GLTF_MALLOC(glbSize_);
+    }
+
+    u32 glTF::sizeGLB() const
+    {
+        return glbSize_;
+    }
+
+    const u8* glTF::getGLB(u32 offset) const
+    {
+        GLTF_ASSERT(offset<glbSize_);
+        return glbBin_+offset;
+    }
+
+    u8* glTF::getGLB(u32 offset)
+    {
+        GLTF_ASSERT(offset<glbSize_);
+        return glbBin_+offset;
+    }
+
     //---------------------------------------------------------------
     //---
     //--- glTFHandler
@@ -4493,6 +4736,11 @@ namespace
     //---------------------------------------------------------------
     glTFHandler::glTFHandler()
     {
+    }
+
+    glTFHandler::glTFHandler(const Char* directory)
+    {
+        gltf_.setDirectory(directory);
     }
 
     glTFHandler::~glTFHandler()
@@ -4609,6 +4857,7 @@ namespace
                 break;
             }
         }
+        gltf_.loadBuffers();
     }
 
     void glTFHandler::parseAccessor(Accessor& accessor, const JSAny& value)
@@ -5690,72 +5939,61 @@ namespace
     GLBReader::GLBReader(IStream& istream, GLBEventHandler& handler)
         :JSONReader(istream, handler)
         ,handler_(handler)
-        ,length_(0)
-        ,bin_(NULL)
     {
     }
 
     GLBReader::~GLBReader()
     {
-        GLTF_FREE(bin_);
     }
 
     bool GLBReader::read(s32 flags)
     {
         flags_ = flags;
-        u32 magic;
-        u32 version;
-        u32 length;
-        if(istream_.read(magic)<=0){
+        Header header;
+        s32 pos;
+        u32 size;
+        if(istream_.read(header)<=0){
             return false;
         }
-        if(istream_.read(version)<=0){
-            return false;
-        }
-        if(istream_.read(length)<=0){
-            return false;
-        }
-        if(!handler_.parseHeader(magic, version, length)){
+        if(!handler_.parseHeader(header.magic_, header.version_, header.length_)){
             return false;
         }
 
-        if(!readChunkJSON()){
+        if(!readChunkJSON(size)){
             return false;
         }
+        pos = istream_.tell();
         if(!JSONReader::read(flags_)){
             return false;
         }
-        if(!readChunkBIN()){
+        istream_.seek(pos+size);
+        if(!readChunkBIN(size)){
             return false;
         }
+        handler_.get().loadGLBBuffers();
         return true;
     }
 
-    const u8* GLBReader::getBin(u32 offset) const
+    bool GLBReader::readChunkJSON(u32& size)
     {
-        GLTF_ASSERT(offset<length_);
-        return bin_+offset;
-    }
-
-    bool GLBReader::readChunkJSON()
-    {
-        u32 length;
+        size = 0;
         u32 type;
         s32 pos = istream_.tell();
         for(;;){
-            if(istream_.read(length)<=0){
+            if(istream_.read(size)<=0){
                 return false;
             }
-            if(length<=0){
+            if(size<=0){
                 continue;
             }
             if(istream_.read(type)<=0){
                 return false;
             }
             if(type != ChunkType_JSON){
-                if(!istream_.seek(pos+length)){
+                if(!istream_.seek(pos+size)){
                     return false;
                 }
+                pos = istream_.tell();
                 continue;
             }
             break;
@@ -5763,33 +6001,33 @@ namespace
         return true;
     }
 
-    bool GLBReader::readChunkBIN()
+    bool GLBReader::readChunkBIN(u32& size)
     {
-        u32 length = 0;
+        size = 0;
         u32 type;
         s32 pos = istream_.tell();
         for(;;){
-            if(istream_.read(length)<=0){
+            if(istream_.read(size)<=0){
                 return false;
             }
-            if(length<=0){
+            if(size<=0){
                 continue;
             }
             if(istream_.read(type)<=0){
                 return false;
             }
             if(type != ChunkType_BIN){
-                if(!istream_.seek(pos+length)){
+                if(!istream_.seek(pos+size)){
                     return false;
                 }
+                pos = istream_.tell();
                 continue;
             }
             break;
         }
-        length_ = length;
-        GLTF_FREE(bin_);
-        bin_ = (u8*)GLTF_MALLOC(length_);
-        if(istream_.read(bin_, static_cast<s32>(length_)) <= 0){
+        glTF& gltf = handler_.get();
+        gltf.allocateGLB(static_cast<u32>(size));
+        if(istream_.read(gltf.getGLB(0), size) <= 0){
             return false;
         }
         return true;
@@ -5802,20 +6040,30 @@ namespace
     //---------------------------------------------------------------
     glTFWriter::glTFWriter(OStream& ostream)
         :indent_(0)
-        ,ostream_(ostream)
+        ,gltf_(NULL)
+        ,ostream0_(ostream)
     {
+        ostream1_ = &ostream0_;
     }
 
     glTFWriter::~glTFWriter()
     {
     }
 
-    bool glTFWriter::write(const glTF& gltf, u32 flags)
+    bool glTFWriter::write(const glTF& gltf, GLTF_FILE type, u32 flags)
     {
         flags_.flags_ = flags;
+        gltf_ = &gltf;
         indent_ = 0;
 
-        ostream_.write('{');
+        OSStream osstream;
+
+        switch(type){
+        case GLTF_FILE_GLB:
+            ostream1_ = &osstream;
+            break;
+        }
+        ostream1_->write('{');
         printLine();
         {
             Indent indent(indent_);
@@ -5881,7 +6129,33 @@ namespace
             }
             replaceLastLine();
         }
-        ostream_.write('}');
+        ostream1_->write('}');
+
+        switch(type){
+        case GLTF_FILE_GLB:
+        {
+            ostream1_ = &ostream0_;
+            GLBReader::Header header;
+            header.magic_ = GLBReader::Magic;
+            header.version_ = GLBReader::Version;
+            header.length_ = osstream.size() + gltf.sizeGLB() + sizeof(GLBReader::Chunk)*2;
+            ostream1_->write(header);
+
+            GLBReader::Chunk chunk;
+            chunk.length_ = osstream.size();
+            chunk.type_ = GLBReader::ChunkType_JSON;
+            ostream1_->write(chunk);
+            ostream1_->write(osstream.size(), osstream.buff());
+
+            chunk.length_ = gltf.sizeGLB();
+            chunk.type_ = GLBReader::ChunkType_BIN;
+            ostream1_->write(chunk);
+            ostream1_->write(gltf.sizeGLB(), gltf.getGLB(0));
+        }
+            break;
+        }
+
+        gltf_ = NULL;
         return true;
     }
 
@@ -5892,7 +6166,7 @@ namespace
         }
         s32 indent = indent_<<2;
         for(s32 i=0; i<indent; ++i){
-            ostream_.write(' ');
+            ostream1_->write(' ');
         }
     }
 
@@ -5901,27 +6175,27 @@ namespace
         if(!flags_.check(Flag_Format)){
             return;
         }
-        ostream_.write('\n');
+        ostream1_->write('\n');
     }
 
     void glTFWriter::printSeparator()
     {
-        ostream_.write(',');
+        ostream1_->write(',');
     }
 
     void glTFWriter::printSeparatorLine()
     {
-        ostream_.write(2, ",\n");
+        ostream1_->write(2, ",\n");
     }
 
     void glTFWriter::printKeyValueSeparator()
     {
-        ostream_.write(2, ": ");
+        ostream1_->write(2, ": ");
     }
 
     void glTFWriter::replaceLastLine()
     {
-        ostream_.replaceLast(2, "\n");
+        ostream1_->replaceLast(2, "\n");
     }
 
     void glTFWriter::format(const Char* str, ...)
@@ -5934,7 +6208,7 @@ namespace
 #else
         s32 length = vscprintf(str, args);
 #endif
-        static const s32 MaxBuffer = 1024;
+        static const s32 MaxBuffer = 128;
         Char buffer[MaxBuffer];
         Char* buff;
         if(length<MaxBuffer){
@@ -5948,7 +6222,7 @@ namespace
 #else
         ::vsnprintf(buff, length, str, args);
 #endif //defined(_WIN32) || defined(_WIN64)
-        ostream_.write(length, buff);
+        ostream1_->write(length, buff);
         if(buffer != buff){
             GLTF_FREE(buff);
         }
@@ -5957,17 +6231,17 @@ namespace
 
     bool glTFWriter::print(const Char* str)
     {
-        ostream_.write('\"');
-        ostream_.write(str);
-        ostream_.write('\"');
+        ostream1_->write('\"');
+        ostream1_->write(str);
+        ostream1_->write('\"');
         return true;
     }
 
     bool glTFWriter::print(const String& str)
     {
-        ostream_.write('\"');
-        ostream_.write(str.length(), str.c_str());
-        ostream_.write('\"');
+        ostream1_->write('\"');
+        ostream1_->write(str.length(), str.c_str());
+        ostream1_->write('\"');
         return true;
     }
 
@@ -5992,37 +6266,37 @@ namespace
     bool glTFWriter::print(boolean value)
     {
         const Char* str = (value)? "true":"false";
-        ostream_.write(str);
+        ostream1_->write(str);
         return true;
     }
 
     void glTFWriter::printNull()
     {
-        ostream_.write(4, "null");
+        ostream1_->write(4, "null");
     }
 
     void glTFWriter::beginObject()
     {
-        ostream_.write('{');
+        ostream1_->write('{');
         printLine();
     }
 
     void glTFWriter::endObject()
     {
         printIndent();
-        ostream_.write('}');
+        ostream1_->write('}');
     }
 
     void glTFWriter::beginArray()
     {
-        ostream_.write('[');
+        ostream1_->write('[');
         printLine();
     }
 
     void glTFWriter::endArray()
     {
         printIndent();
-        ostream_.write(']');
+        ostream1_->write(']');
     }
 
     void glTFWriter::printObjectProperty(const Char* key, const String& value)
@@ -6068,13 +6342,13 @@ namespace
         printIndent();
         print(key);
         printKeyValueSeparator();
-        ostream_.write('[');
+        ostream1_->write('[');
         for(s32 i=0; i<num; ++i){
             print(value[i]);
-            ostream_.write(',');
+            ostream1_->write(',');
         }
         print(value[num]);
-        ostream_.write(']');
+        ostream1_->write(']');
         printSeparatorLine();
     }
 
@@ -6085,13 +6359,13 @@ namespace
         printIndent();
         print(key);
         printKeyValueSeparator();
-        ostream_.write('[');
+        ostream1_->write('[');
         for(s32 i=0; i<num; ++i){
             print(value[i]);
-            ostream_.write(',');
+            ostream1_->write(',');
         }
         print(value[num]);
-        ostream_.write(']');
+        ostream1_->write(']');
         printSeparatorLine();
     }
 
@@ -6102,13 +6376,13 @@ namespace
         printIndent();
         print(key);
         printKeyValueSeparator();
-        ostream_.write('[');
+        ostream1_->write('[');
         for(s32 i=0; i<num; ++i){
             print(value[i]);
-            ostream_.write(',');
+            ostream1_->write(',');
         }
         print(value[num]);
-        ostream_.write(']');
+        ostream1_->write(']');
         printSeparatorLine();
     }
 
@@ -6478,7 +6752,9 @@ namespace
         {
             Indent indent(indent_);
             if(0<buffer.uri_.length()){
-                printObjectProperty("uri", buffer.uri_);
+                String uri;
+                save(uri, buffer, gltf_->directory_);
+                printObjectProperty("uri", uri);
             }
 
             if(buffer.byteLength_<0){
@@ -6651,12 +6927,12 @@ namespace
         return true;
     }
 
-    bool glTFWriter::print(const Extensions& extensions)
+    bool glTFWriter::print(const Extensions& /*extensions*/)
     {
         return true;
     }
 
-    bool glTFWriter::print(const Extras& extras)
+    bool glTFWriter::print(const Extras& /*extras*/)
     {
         return true;
     }

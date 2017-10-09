@@ -1,7 +1,9 @@
 #include "config.h"
 
 TEST_CASE("sample Box can be loaded", "[Box]"){
+    static const char* normalDir = DATA_ROOT"Box/glTF/";
     static const char* normal = DATA_ROOT"Box/glTF/Box.gltf";
+    static const char* binaryDir = DATA_ROOT"Box/glTF-Binary/";
     static const char* binary = DATA_ROOT"Box/glTF-Binary/Box.glb";
 
     SECTION("load normal"){
@@ -11,16 +13,16 @@ TEST_CASE("sample Box can be loaded", "[Box]"){
         }
 
         gltf::IFStream ifstream = std::move(gltf::IFStream(file));
-        gltf::glTFHandler gltfHandler;
-        gltf::JSONReader gltthJsonReader(ifstream, gltfHandler);
-        bool result = gltthJsonReader.read();
+        gltf::glTFHandler gltfHandler(normalDir);
+        gltf::JSONReader gltfJsonReader(ifstream, gltfHandler);
+        bool result = gltfJsonReader.read();
         REQUIRE(result);
         fclose(file);
 
         bool checkRequirements = gltfHandler.get().checkRequirements();
         REQUIRE(checkRequirements);
 
-        const gltf::glTF& gltf = gltfHandler.get();
+        gltf::glTF& gltf = gltfHandler.get();
         REQUIRE(("COLLADA2GLTF" == gltf.asset_.generator_));
 
 #ifdef TEST_OUT
@@ -29,9 +31,10 @@ TEST_CASE("sample Box can be loaded", "[Box]"){
             if(NULL == outfile){
                 return;
             }
+            gltf.setDirectory("../");
             gltf::OFStream ofstream(outfile);
             gltf::glTFWriter writer(ofstream);
-            writer.write(gltf, gltf::glTFWriter::Flag_Format);
+            writer.write(gltf, gltf::GLTF_FILE_AsIs, gltf::glTFWriter::Flag_Format);
             fclose(outfile);
         }
 #endif
