@@ -862,7 +862,119 @@ namespace gltf
     //--- glTF JSON
     //---
     //---------------------------------------------------------------
-#include "keys.h"
+    static const s32 GLTF_BUFFERVIEW = 0;
+    static const s32 GLTF_BYTEOFFSET = 1;
+    static const s32 GLTF_COMPONENTTYPE = 2;
+    static const s32 GLTF_NORMALIZED = 3;
+    static const s32 GLTF_COUNT = 4;
+    static const s32 GLTF_TYPE = 5;
+    static const s32 GLTF_MAX = 6;
+    static const s32 GLTF_MIN = 7;
+    static const s32 GLTF_SPARSE = 8;
+    static const s32 GLTF_NAME = 9;
+    static const s32 GLTF_EXTENSIONS = 10;
+    static const s32 GLTF_EXTRAS = 11;
+    static const s32 GLTF_CHANNELS = 12;
+    static const s32 GLTF_SAMPLERS = 13;
+    static const s32 GLTF_INPUT = 14;
+    static const s32 GLTF_INTERPOLATION = 15;
+    static const s32 GLTF_OUTPUT = 16;
+    static const s32 GLTF_COPYRIGHT = 17;
+    static const s32 GLTF_GENERATOR = 18;
+    static const s32 GLTF_VERSION = 19;
+    static const s32 GLTF_MINVERSION = 20;
+    static const s32 GLTF_URI = 21;
+    static const s32 GLTF_BYTELENGTH = 22;
+    static const s32 GLTF_BUFFER = 23;
+    static const s32 GLTF_BYTESTRIDE = 24;
+    static const s32 GLTF_TARGET = 25;
+    static const s32 GLTF_ORTHOGRAPHIC = 26;
+    static const s32 GLTF_PERSPECTIVE = 27;
+    static const s32 GLTF_SAMPLER = 28;
+    static const s32 GLTF_EXTENSIONSUSED = 29;
+    static const s32 GLTF_EXTENSIONSREQUIRED = 30;
+    static const s32 GLTF_ACCESSORS = 31;
+    static const s32 GLTF_ANIMATIONS = 32;
+    static const s32 GLTF_ASSET = 33;
+    static const s32 GLTF_BUFFERS = 34;
+    static const s32 GLTF_BUFFERVIEWS = 35;
+    static const s32 GLTF_CAMERAS = 36;
+    static const s32 GLTF_IMAGES = 37;
+    static const s32 GLTF_MATERIALS = 38;
+    static const s32 GLTF_MESHES = 39;
+    static const s32 GLTF_NODES = 40;
+    static const s32 GLTF_SCENE = 41;
+    static const s32 GLTF_SCENES = 42;
+    static const s32 GLTF_SKINS = 43;
+    static const s32 GLTF_TEXTURES = 44;
+    static const s32 GLTF_MIMETYPE = 45;
+    static const s32 GLTF_PBRMETALLICROUGHNESS = 46;
+    static const s32 GLTF_NORMALTEXTURE = 47;
+    static const s32 GLTF_OCCLUSIONTEXTURE = 48;
+    static const s32 GLTF_EMISSIVETEXTURE = 49;
+    static const s32 GLTF_EMISSIVEFACTOR = 50;
+    static const s32 GLTF_ALPHAMODE = 51;
+    static const s32 GLTF_ALPHACUTOFF = 52;
+    static const s32 GLTF_DOUBLESIDED = 53;
+    static const s32 GLTF_PRIMITIVES = 54;
+    static const s32 GLTF_WEIGHTS = 55;
+    static const s32 GLTF_CAMERA = 56;
+    static const s32 GLTF_CHILDREN = 57;
+    static const s32 GLTF_SKIN = 58;
+    static const s32 GLTF_MATRIX = 59;
+    static const s32 GLTF_MESH = 60;
+    static const s32 GLTF_ROTATION = 61;
+    static const s32 GLTF_SCALE = 62;
+    static const s32 GLTF_TRANSLATION = 63;
+    static const s32 GLTF_INDEX = 64;
+    static const s32 GLTF_TEXCOORD = 65;
+    static const s32 GLTF_STRENGTH = 66;
+    static const s32 GLTF_XMAG = 67;
+    static const s32 GLTF_YMAG = 68;
+    static const s32 GLTF_ZFAR = 69;
+    static const s32 GLTF_ZNEAR = 70;
+    static const s32 GLTF_BASECOLORFACTOR = 71;
+    static const s32 GLTF_BASECOLORTEXTURE = 72;
+    static const s32 GLTF_METALLICFACTOR = 73;
+    static const s32 GLTF_ROUGHNESSFACTOR = 74;
+    static const s32 GLTF_METALLICROUGHNESSTEXTURE = 75;
+    static const s32 GLTF_ASPECTRATIO = 76;
+    static const s32 GLTF_YFOV = 77;
+    static const s32 GLTF_ATTRIBUTES = 78;
+    static const s32 GLTF_INDICES = 79;
+    static const s32 GLTF_MATERIAL = 80;
+    static const s32 GLTF_MODE = 81;
+    static const s32 GLTF_TARGETS = 82;
+    static const s32 GLTF_MAGFILTER = 83;
+    static const s32 GLTF_MINFILTER = 84;
+    static const s32 GLTF_WRAPS = 85;
+    static const s32 GLTF_WRAPT = 86;
+    static const s32 GLTF_INVERSEBINDMATRICES = 87;
+    static const s32 GLTF_SKELETON = 88;
+    static const s32 GLTF_JOINTS = 89;
+    static const s32 GLTF_VALUES = 90;
+    static const s32 GLTF_NODE = 91;
+    static const s32 GLTF_PATH = 92;
+    static const s32 GLTF_SOURCE = 93;
+    static const s32 GLTF_POSITION = 94;
+    static const s32 GLTF_NORMAL = 95;
+    static const s32 GLTF_TANGENT = 96;
+    static const s32 GLTF_TEXCOORD_0 = 97;
+    static const s32 GLTF_TEXCOORD_1 = 98;
+    static const s32 GLTF_TEXCOORD_2 = 99;
+    static const s32 GLTF_TEXCOORD_3 = 100;
+    static const s32 GLTF_COLOR_0 = 101;
+    static const s32 GLTF_COLOR_1 = 102;
+    static const s32 GLTF_COLOR_2 = 103;
+    static const s32 GLTF_COLOR_3 = 104;
+    static const s32 GLTF_JOINTS_0 = 105;
+    static const s32 GLTF_JOINTS_1 = 106;
+    static const s32 GLTF_JOINTS_2 = 107;
+    static const s32 GLTF_JOINTS_3 = 108;
+    static const s32 GLTF_WEIGHTS_0 = 109;
+    static const s32 GLTF_WEIGHTS_1 = 110;
+    static const s32 GLTF_WEIGHTS_2 = 111;
+    static const s32 GLTF_WEIGHTS_3 = 112;
 
     struct JSKeyValue;
     class Allocator;
@@ -3482,7 +3594,128 @@ namespace
         return page;
     }
 
-#include "keys.cpp"
+    namespace
+    {
+        struct Word{ u32 hash_; const char* str_;};
+        static const s32 NumWords = 113;
+        const Word words[] =
+        {
+            {3733770766U,"BUFFERVIEW"},
+            {1736982884U,"BYTEOFFSET"},
+            {535965544U,"COMPONENTTYPE"},
+            {759490392U,"NORMALIZED"},
+            {2750919380U,"COUNT"},
+            {338683789U,"TYPE"},
+            {475632249U,"MAX"},
+            {239465655U,"MIN"},
+            {413982885U,"SPARSE"},
+            {1387956774U,"NAME"},
+            {1482583691U,"EXTENSIONS"},
+            {1617560430U,"EXTRAS"},
+            {2180989045U,"CHANNELS"},
+            {864986484U,"SAMPLERS"},
+            {1638025307U,"INPUT"},
+            {3457493885U,"INTERPOLATION"},
+            {1469629700U,"OUTPUT"},
+            {2970901150U,"COPYRIGHT"},
+            {622175778U,"GENERATOR"},
+            {3552295351U,"VERSION"},
+            {3706427545U,"MINVERSION"},
+            {2053729053U,"URI"},
+            {1037972015U,"BYTELENGTH"},
+            {4289874747U,"BUFFER"},
+            {417073434U,"BYTESTRIDE"},
+            {4080126536U,"TARGET"},
+            {4050703019U,"ORTHOGRAPHIC"},
+            {2423545653U,"PERSPECTIVE"},
+            {4060151151U,"SAMPLER"},
+            {1499262730U,"EXTENSIONSUSED"},
+            {996948758U,"EXTENSIONSREQUIRED"},
+            {2414822891U,"ACCESSORS"},
+            {1789696170U,"ANIMATIONS"},
+            {2283815739U,"ASSET"},
+            {3987518648U,"BUFFERS"},
+            {3031378023U,"BUFFERVIEWS"},
+            {2550069799U,"CAMERAS"},
+            {1881178923U,"IMAGES"},
+            {1393374089U,"MATERIALS"},
+            {4206430392U,"MESHES"},
+            {3675200826U,"NODES"},
+            {51960179U,"SCENE"},
+            {1953120U,"SCENES"},
+            {1702551537U,"SKINS"},
+            {3346351557U,"TEXTURES"},
+            {3540378101U,"MIMETYPE"},
+            {2464862628U,"PBRMETALLICROUGHNESS"},
+            {3405345669U,"NORMALTEXTURE"},
+            {1228653941U,"OCCLUSIONTEXTURE"},
+            {3330026097U,"EMISSIVETEXTURE"},
+            {2025219817U,"EMISSIVEFACTOR"},
+            {3200287092U,"ALPHAMODE"},
+            {2113210782U,"ALPHACUTOFF"},
+            {1515629509U,"DOUBLESIDED"},
+            {3884336095U,"PRIMITIVES"},
+            {3302258910U,"WEIGHTS"},
+            {1150800334U,"CAMERA"},
+            {25294226U,"CHILDREN"},
+            {1891474104U,"SKIN"},
+            {3232719852U,"MATRIX"},
+            {1253731580U,"MESH"},
+            {1306169695U,"ROTATION"},
+            {594488785U,"SCALE"},
+            {2352925580U,"TRANSLATION"},
+            {2977188619U,"INDEX"},
+            {197415955U,"TEXCOORD"},
+            {1190385072U,"STRENGTH"},
+            {2641395134U,"XMAG"},
+            {4266306379U,"YMAG"},
+            {3102316870U,"ZFAR"},
+            {3547621959U,"ZNEAR"},
+            {1281948832U,"BASECOLORFACTOR"},
+            {2523291950U,"BASECOLORTEXTURE"},
+            {3732260891U,"METALLICFACTOR"},
+            {3032623030U,"ROUGHNESSFACTOR"},
+            {3979861821U,"METALLICROUGHNESSTEXTURE"},
+            {770814808U,"ASPECTRATIO"},
+            {3573915575U,"YFOV"},
+            {2183160468U,"ATTRIBUTES"},
+            {3304816210U,"INDICES"},
+            {2401933216U,"MATERIAL"},
+            {3593007890U,"MODE"},
+            {4066453633U,"TARGETS"},
+            {2867472150U,"MAGFILTER"},
+            {2384703633U,"MINFILTER"},
+            {3322193538U,"WRAPS"},
+            {3238305443U,"WRAPT"},
+            {622090976U,"INVERSEBINDMATRICES"},
+            {4266997486U,"SKELETON"},
+            {1803683916U,"JOINTS"},
+            {3612181627U,"VALUES"},
+            {2000820813U,"NODE"},
+            {1839435638U,"PATH"},
+            {3111715480U,"SOURCE"},
+            {2013849738U,"POSITION"},
+            {1009949074U,"NORMAL"},
+            {2576630498U,"TANGENT"},
+            {1145745916U,"TEXCOORD_0"},
+            {1162523535U,"TEXCOORD_1"},
+            {1179301154U,"TEXCOORD_2"},
+            {1196078773U,"TEXCOORD_3"},
+            {3429632335U,"COLOR_0"},
+            {3412854716U,"COLOR_1"},
+            {3463187573U,"COLOR_2"},
+            {3446409954U,"COLOR_3"},
+            {3797173403U,"JOINTS_0"},
+            {3780395784U,"JOINTS_1"},
+            {3830728641U,"JOINTS_2"},
+            {3813951022U,"JOINTS_3"},
+            {596967449U,"WEIGHTS_0"},
+            {580189830U,"WEIGHTS_1"},
+            {563412211U,"WEIGHTS_2"},
+            {546634592U,"WEIGHTS_3"},
+        };
+    }
+
     //---------------------------------------------------------------
     //---
     //--- glTFBase
