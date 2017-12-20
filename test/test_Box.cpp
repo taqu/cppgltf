@@ -1,28 +1,26 @@
 #include "config.h"
 
 TEST_CASE("sample Box can be loaded", "[Box]"){
-    static const char* normalDir = DATA_ROOT"Box/glTF/";
-    static const char* normal = DATA_ROOT"Box/glTF/Box.gltf";
+    static const char* textDir = DATA_ROOT"Box/glTF/";
+    static const char* text = DATA_ROOT"Box/glTF/Box.gltf";
     static const char* binaryDir = DATA_ROOT"Box/glTF-Binary/";
     static const char* binary = DATA_ROOT"Box/glTF-Binary/Box.glb";
 
-    SECTION("load normal"){
-        FILE* file = gltf::fopen_s(normal, "rb");
-        if(NULL == file){
+    SECTION("load text"){
+        cppgltf::IFStream ifstream;
+        if(!ifstream.open(text)){
             return;
         }
-
-        gltf::IFStream ifstream = std::move(gltf::IFStream(file));
-        gltf::glTFHandler gltfHandler(normalDir);
-        gltf::JSONReader gltfJsonReader(ifstream, gltfHandler);
+        cppgltf::glTFHandler gltfHandler(textDir);
+        cppgltf::JSONReader gltfJsonReader(ifstream, gltfHandler);
         bool result = gltfJsonReader.read();
         REQUIRE(result);
-        fclose(file);
+        ifstream.close();
 
         bool checkRequirements = gltfHandler.get().checkRequirements();
         REQUIRE(checkRequirements);
 
-        gltf::glTF& gltf = gltfHandler.get();
+        cppgltf::glTF& gltf = gltfHandler.get();
 
         //asset
         REQUIRE(("COLLADA2GLTF" == gltf.asset_.generator_));
@@ -63,12 +61,12 @@ TEST_CASE("sample Box can be loaded", "[Box]"){
         REQUIRE(("Mesh" == gltf.meshes_[0].name_));
         REQUIRE((1 == gltf.meshes_[0].primitives_.size()));
         REQUIRE((2 == gltf.meshes_[0].primitives_[0].attributes_.size()));
-        REQUIRE((gltf::GLTF_ATTRIBUTE_NORMAL == gltf.meshes_[0].primitives_[0].attributes_[0].semantic_));
+        REQUIRE((cppgltf::GLTF_ATTRIBUTE_NORMAL == gltf.meshes_[0].primitives_[0].attributes_[0].semantic_));
         REQUIRE((1 == gltf.meshes_[0].primitives_[0].attributes_[0].index_));
-        REQUIRE((gltf::GLTF_ATTRIBUTE_POSITION == gltf.meshes_[0].primitives_[0].attributes_[1].semantic_));
+        REQUIRE((cppgltf::GLTF_ATTRIBUTE_POSITION == gltf.meshes_[0].primitives_[0].attributes_[1].semantic_));
         REQUIRE((2 == gltf.meshes_[0].primitives_[0].attributes_[1].index_));
         REQUIRE((0 == gltf.meshes_[0].primitives_[0].indices_));
-        REQUIRE((gltf::GLTF_PRIMITIVE_TRIANGLES == gltf.meshes_[0].primitives_[0].mode_));
+        REQUIRE((cppgltf::GLTF_PRIMITIVE_TRIANGLES == gltf.meshes_[0].primitives_[0].mode_));
         REQUIRE((0 == gltf.meshes_[0].primitives_[0].material_));
 
 #ifdef TEST_OUT
@@ -87,17 +85,15 @@ TEST_CASE("sample Box can be loaded", "[Box]"){
     }
 
     SECTION("load binary"){
-        FILE* file = gltf::fopen_s(binary, "rb");
-        if(NULL == file){
+        cppgltf::IFStream ifstream;
+        if(!ifstream.open(binary)){
             return;
         }
-
-        gltf::IFStream ifstream = std::move(gltf::IFStream(file));
-        gltf::GLBEventHandler glbHandler;
-        gltf::GLBReader glbReader(ifstream, glbHandler);
+        cppgltf::GLBEventHandler glbHandler;
+        cppgltf::GLBReader glbReader(ifstream, glbHandler);
         bool result = glbReader.read();
         REQUIRE(result);
-        fclose(file);
+        ifstream.close();
 
         bool checkRequirements = glbHandler.get().checkRequirements();
         REQUIRE(checkRequirements);

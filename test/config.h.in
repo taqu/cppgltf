@@ -6,7 +6,7 @@
 @date 2017/09/21 create
 */
 #include "catch.hpp"
-#include "../glTF.h"
+#include "../cppgltf.h"
 
 #define DATA_ROOT "${GLTF_DATA_ROOT}"
 

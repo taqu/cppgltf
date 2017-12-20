@@ -1,5 +1,5 @@
-#ifndef INC_GLTF_H_
-#define INC_GLTF_H_
+#ifndef INC_CPPGLTF_H_
+#define INC_CPPGLTF_H_
 /*
 This is free and unencumbered software released into the public domain.
 
@@ -29,6 +29,9 @@ For more information, please refer to <http://unlicense.org>
 /**
 @author t-sakai
 @date 2017/09/06 create
+
+USAGE:
+put '#define CPPGLTF_IMPLEMENTATION' before including this file to create the implementation.
 */
 #include <cassert>
 #include <cstdint>
@@ -39,10 +42,26 @@ For more information, please refer to <http://unlicense.org>
 #include <utility>
 #include <cstdarg>
 
-namespace gltf
+namespace cppgltf
 {
-#ifndef GLTF_TYPES
-#define GLTF_TYPES
+#ifdef __cplusplus
+#   if 201103L<=__cplusplus || 1900<=_MSC_VER
+#       define CPPGLTF_CPP11 1
+#   endif
+#endif
+
+#ifdef __cplusplus
+#   ifdef CPPGLTF_CPP11
+#       define CPPGLTF_NULL nullptr
+#   else
+#       define CPPGLTF_NULL 0
+#   endif
+#else
+#   define CPPGLTF_NULL (void*)0
+#endif
+
+#ifndef CPPGLTF_TYPES
+#define CPPGLTF_TYPES
     typedef int8_t s8;
     typedef int16_t s16;
     typedef int32_t s32;
@@ -61,55 +80,61 @@ namespace gltf
 
     typedef std::size_t size_type;
 
+    using std::move;
+
 #ifdef _MSC_VER
+#ifndef CPPGLTF_OFF_T
+#define CPPGLTF_OFF_T
     typedef s32 off_t;
-    #ifndef GLTF_FSEEK
-    #define GLTF_FSEEK(f,p,o) fseek((f),(p),(o))
+#endif
+
+    #ifndef CPPGLTF_FSEEK
+    #define CPPGLTF_FSEEK(f,p,o) fseek((f),(p),(o))
     #endif
 
-    #ifndef GLTF_FTELL
-    #define GLTF_FTELL(f) ftell((f))
+    #ifndef CPPGLTF_FTELL
+    #define CPPGLTF_FTELL(f) ftell((f))
     #endif
 
 #else
+#ifndef CPPGLTF_OFF_T
+#define CPPGLTF_OFF_T
     typedef s32 off_t;
-    #ifndef GLTF_FSEEK
-    #define GLTF_FSEEK(f,p,o) fseek((f),(p),(o))
+#endif
+
+    #ifndef CPPGLTF_FSEEK
+    #define CPPGLTF_FSEEK(f,p,o) fseek((f),(p),(o))
     #endif
 
-    #ifndef GLTF_FTELL
-    #define GLTF_FTELL(f) ftell((f))
+    #ifndef CPPGLTF_FTELL
+    #define CPPGLTF_FTELL(f) ftell((f))
     #endif
 #endif
 
+#endif//CPPGLTF_TYPES
+
+#ifndef CPPGLTF_MALLOC
+#define CPPGLTF_MALLOC(size) malloc(size)
 #endif
 
-#ifndef GLTF_MALLOC
-#define GLTF_MALLOC(size) malloc(size)
+#ifndef CPPGLTF_FREE
+#define CPPGLTF_FREE(ptr) free(ptr)
 #endif
 
-#ifndef GLTF_FREE
-#define GLTF_FREE(ptr) free(ptr)
+#ifndef CPPGLTF_PLACEMENT_NEW
+#define CPPGLTF_PLACEMENT_NEW(ptr) new(ptr)
 #endif
 
-#ifndef GLTF_PLACEMENT_NEW
-#define GLTF_PLACEMENT_NEW(ptr) new(ptr)
-#endif
-
-#ifndef GLTF_ASSERT
-#define GLTF_ASSERT(exp) assert(exp)
-#endif
-
-#ifndef GLTF_FSEEK
-#define GLTF_FSEEK(f,p,o) fseek((f),(p),(o))
+#ifndef CPPGLTF_ASSERT
+#define CPPGLTF_ASSERT(exp) assert(exp)
 #endif
 
     template<class T>
     inline void swap(T& l, T& r)
     {
-        T tmp(std::move(l));
-        l = std::move(r);
-        r = std::move(tmp);
+        T tmp(move(l));
+        l = move(r);
+        r = move(tmp);
     }
 
     template<class T>
@@ -141,8 +166,6 @@ namespace gltf
     {
         return absolute(x0-x1)<=FLT_EPSILON;
     }
-
-    FILE* fopen_s(const Char* filename, const Char* mode);
 
     boolean isBase64(s32 c);
     s32 getLengthEncodedBase64(s32 l);
@@ -258,13 +281,13 @@ namespace gltf
 
     inline const Char& String::operator[](s32 index) const
     {
-        GLTF_ASSERT(0<=index && index<length_);
+        CPPGLTF_ASSERT(0<=index && index<length_);
         return getBuffer()[index];
     }
 
     inline Char& String::operator[](s32 index)
     {
-        GLTF_ASSERT(0<=index && index<length_);
+        CPPGLTF_ASSERT(0<=index && index<length_);
         return getBuffer()[index];
     }
 
@@ -280,13 +303,13 @@ namespace gltf
 
     inline s32 compare(const String& lhs, const Char* rhs)
     {
-        GLTF_ASSERT(NULL != rhs);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != rhs);
         return ::strcmp(lhs.c_str(), rhs);
     }
 
     inline s32 compare(const Char* lhs, const String& rhs)
     {
-        GLTF_ASSERT(NULL != lhs);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != lhs);
         return ::strcmp(lhs, rhs.c_str());
     }
 
@@ -343,7 +366,7 @@ namespace gltf
     Array<T>::Array()
         :capacity_(0)
         ,size_(0)
-        ,items_(NULL)
+        ,items_(CPPGLTF_NULL)
     {
     }
 
@@ -355,17 +378,17 @@ namespace gltf
     {
         rhs.capacity_ = 0;
         rhs.size_ = 0;
-        rhs.items_ = NULL;
+        rhs.items_ = CPPGLTF_NULL;
     }
 
     template<class T>
     Array<T>::Array(s32 capacity)
         :capacity_(capacity)
         ,size_(0)
-        ,items_(NULL)
+        ,items_(CPPGLTF_NULL)
     {
-        GLTF_ASSERT(0<=capacity_);
-        items_ = (T*)GLTF_MALLOC(sizeof(T)*capacity_);
+        CPPGLTF_ASSERT(0<=capacity_);
+        items_ = (T*)CPPGLTF_MALLOC(sizeof(T)*capacity_);
     }
 
     template<class T>
@@ -374,8 +397,8 @@ namespace gltf
         for(s32 i=0; i<size_; ++i){
             items_[i].~T();
         }
-        GLTF_FREE(items_);
-        items_ = NULL;
+        CPPGLTF_FREE(items_);
+        items_ = CPPGLTF_NULL;
     }
 
     template<class T>
@@ -393,42 +416,42 @@ namespace gltf
     template<class T>
     inline T& Array<T>::operator[](s32 index)
     {
-        GLTF_ASSERT(0<=index && index<size_);
+        CPPGLTF_ASSERT(0<=index && index<size_);
         return items_[index];
     }
 
     template<class T>
     inline const T& Array<T>::operator[](s32 index) const
     {
-        GLTF_ASSERT(0<=index && index<size_);
+        CPPGLTF_ASSERT(0<=index && index<size_);
         return items_[index];
     }
 
     template<class T>
     inline T& Array<T>::front()
     {
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         return items_[0];
     }
 
     template<class T>
     inline const T& Array<T>::front() const
     {
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         return items_[0];
     }
 
     template<class T>
     inline T& Array<T>::back()
     {
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         return items_[size_-1];
     }
 
     template<class T>
     inline const T& Array<T>::back() const
     {
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         return items_[size_-1];
     }
 
@@ -439,7 +462,7 @@ namespace gltf
         if(capacity_<=size_){
             reserve(capacity_+16);
         }
-        GLTF_PLACEMENT_NEW(&items_[size_]) T(t);
+        CPPGLTF_PLACEMENT_NEW(&items_[size_]) T(t);
         ++size_;
     }
 
@@ -450,14 +473,14 @@ namespace gltf
         if(capacity_<=size_){
             reserve(capacity_+16);
         }
-        GLTF_PLACEMENT_NEW(&items_[size_]) T(t);
+        CPPGLTF_PLACEMENT_NEW(&items_[size_]) T(t);
         ++size_;
     }
 
     template<class T>
     void Array<T>::pop_back()
     {
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         --size_;
         items_[size_].~T();
     }
@@ -478,16 +501,13 @@ namespace gltf
             return;
         }
 
-        //新しいバッファ確保
-        T *newItems = (T*)GLTF_MALLOC(capacity*sizeof(T));
+        T *newItems = (T*)CPPGLTF_MALLOC(capacity*sizeof(T));
 
-        //コピーコンストラクタでコピー。古い要素のデストラクト
         for(s32 i=0; i<size_; ++i){
-            GLTF_PLACEMENT_NEW(&newItems[i]) T(std::move(items_[i]));
+            CPPGLTF_PLACEMENT_NEW(&newItems[i]) T(std::move(items_[i]));
             items_[i].~T();
         }
-        //古いバッファ破棄
-        GLTF_FREE(items_);
+        CPPGLTF_FREE(items_);
         items_ = newItems;
         capacity_ = capacity;
     }
@@ -496,7 +516,6 @@ namespace gltf
     void Array<T>::resize(s32 size)
     {
         if(size < size_){
-            //デストラクト
             for(s32 i=size; i<size_; ++i){
                 items_[i].~T();
             }
@@ -504,7 +523,7 @@ namespace gltf
         }else{
             reserve(size);
             for(s32 i=size_; i<size; ++i){
-                GLTF_PLACEMENT_NEW(&items_[i]) T;
+                CPPGLTF_PLACEMENT_NEW(&items_[i]) T;
             }
         }
         size_ = size;
@@ -513,7 +532,7 @@ namespace gltf
     template<class T>
     void Array<T>::removeAt(s32 index)
     {
-        GLTF_ASSERT(0<=index && index<size_);
+        CPPGLTF_ASSERT(0<=index && index<size_);
         for(s32 i=index+1; i<size_; ++i){
             items_[i-1] = std::move(items_[i]);
         }
@@ -541,7 +560,103 @@ namespace gltf
 
         rhs.capacity_ = 0;
         rhs.size_ = 0;
-        rhs.items_ = NULL;
+        rhs.items_ = CPPGLTF_NULL;
+    }
+
+    //----------------------------------------------------
+    //---
+    //--- FStream
+    //---
+    //----------------------------------------------------
+    template<class T>
+    class FStream : public T
+    {
+    public:
+        void close();
+
+        virtual bool valid() const;
+        virtual bool seek(off_t pos, s32 whence);
+        virtual off_t tell();
+
+    protected:
+        FStream(const FStream&) = delete;
+        FStream& operator=(const FStream&) = delete;
+
+        bool open(const Char* filepath, const Char* mode);
+
+        FStream();
+        FStream(FStream&& rhs);
+        ~FStream();
+
+        FILE* file_;
+    };
+
+    template<class T>
+    FStream<T>::FStream()
+        :file_(CPPGLTF_NULL)
+    {}
+
+    template<class T>
+    FStream<T>::FStream(FStream&& rhs)
+        :file_(rhs.file_)
+    {
+        rhs.file_ = CPPGLTF_NULL;
+    }
+
+    template<class T>
+    FStream<T>::~FStream()
+    {
+        close();
+    }
+
+    template<class T>
+    bool FStream<T>::open(const Char* filepath, const Char* mode)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != filepath);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != mode);
+#ifdef _MSC_VER
+        FILE* file;
+        if(0 != fopen_s(&file, filepath, mode)){
+            return false;
+        }
+#else
+        FILE* file = fopen(filepath, mode);
+        if(CPPGLTF_NULL == file){
+            return false;
+        }
+#endif
+        close();
+        file_ = file;
+        return true;
+    }
+
+    template<class T>
+    void FStream<T>::close()
+    {
+        if(CPPGLTF_NULL != file_){
+            fclose(file_);
+            file_ = CPPGLTF_NULL;
+        }
+    }
+
+    template<class T>
+    bool FStream<T>::valid() const
+    {
+        return CPPGLTF_NULL != file_;
+    }
+
+    template<class T>
+    bool FStream<T>::seek(off_t pos, s32 whence)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file_);
+        return 0<=CPPGLTF_FSEEK(file_, pos, whence);
+    }
+
+    template<class T>
+    off_t FStream<T>::tell()
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file_);
+        return CPPGLTF_FTELL(file_);
     }
 
     //---------------------------------------------------------------
@@ -612,14 +727,16 @@ namespace gltf
         const u8* str_;
     };
 
-    class IFStream : public IStream
+    class IFStream : public FStream<IStream>
     {
     public:
+        typedef FStream<IStream> parent_type;
+
         IFStream();
         IFStream(IFStream&& rhs);
-        IFStream(FILE* file);
         virtual ~IFStream();
 
+        bool open(const Char* filepath);
         off_t tell() const override;
         boolean seek(off_t pos) override;
         s32 get() override;
@@ -634,7 +751,6 @@ namespace gltf
         IFStream& operator=(const IFStream&) = delete;
 
         off_t pos_;
-        FILE* file_;
     };
 
 
@@ -699,14 +815,16 @@ namespace gltf
         u8* buffer_;
     };
 
-    class OFStream : public OStream
+    class OFStream : public FStream<OStream>
     {
     public:
+        typedef FStream<OStream> parent_type;
+
         OFStream();
         OFStream(OFStream&& rhs);
-        OFStream(FILE* file);
         virtual ~OFStream();
 
+        bool open(const Char* filepath);
         s32 write(s32 size, const u8* src) override;
         boolean replaceLast(s32 backLen, const Char* str) override;
 
@@ -714,8 +832,6 @@ namespace gltf
     protected:
         OFStream(const OFStream&) = delete;
         OFStream& operator=(const OFStream&) = delete;
-
-        FILE* file_;
     };
 
     //---------------------------------------------------------------
@@ -1082,14 +1198,14 @@ namespace gltf
         void end() override;
 
         void beginObject() override;
-        void endObject(gltf::RangeStream object) override;
+        void endObject(RangeStream object) override;
         void beginArray() override;
-        void endArray(gltf::RangeStream stream) override;
+        void endArray(RangeStream stream) override;
         void root(s32 type, RangeStream value) override;
-        void value(gltf::s32 type, gltf::RangeStream v) override;
-        void keyValue(gltf::RangeStream key, gltf::s32 type, gltf::RangeStream value) override;
+        void value(s32 type, RangeStream v) override;
+        void keyValue(RangeStream key, s32 type, RangeStream value) override;
 
-        void onError(gltf::s32 line, gltf::s32 charCount) override;
+        void onError(s32 line, s32 charCount) override;
 
     protected:
         virtual void parseGlTF(const JSAny& glTF) =0;
@@ -1110,7 +1226,7 @@ namespace gltf
         template<class T>
         inline void expand(Array<T>& array, const JSAny& value)
         {
-            GLTF_ASSERT(JSON_Array == value.type_);
+            CPPGLTF_ASSERT(JSON_Array == value.type_);
             if(array.size()<=value.num_){
                 array.resize(value.num_);
             }
@@ -1118,7 +1234,7 @@ namespace gltf
         template<class T>
         inline void expandObjects(Array<T>& array, const JSAny& value)
         {
-            GLTF_ASSERT(JSON_Object == value.type_);
+            CPPGLTF_ASSERT(JSON_Object == value.type_);
             if(array.size()<=value.num_){
                 array.resize(value.num_);
             }
@@ -2029,11 +2145,10 @@ namespace gltf
         return true;
     }
 }
-#endif //INC_GLTF_H_
+#endif //INC_CPPGLTF_H_
 
-#define GLTF_IMPLEMENTATION
-#ifdef GLTF_IMPLEMENTATION
-namespace gltf
+#ifdef CPPGLTF_IMPLEMENTATION
+namespace cppgltf
 {
 namespace
 {
@@ -2059,16 +2174,6 @@ namespace
     }
 }
 
-    FILE* fopen_s(const Char* filename, const Char* mode)
-    {
-#ifdef _MSC_VER
-        FILE* file = NULL;
-        return 0 == ::fopen_s(&file, filename, mode)? file : NULL;
-#else
-        return fopen(filename, mode);
-#endif
-    }
-
     boolean isBase64(s32 c)
     {
         return std::isalnum(c) || '+'==c || '/'==c;
@@ -2092,8 +2197,8 @@ namespace
 
     s32 decodeBase64(u8* dst, FILE* file)
     {
-        GLTF_ASSERT(NULL != dst);
-        GLTF_ASSERT(NULL != file);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file);
 
         s32 l=0;
         s32 d=0;
@@ -2127,9 +2232,9 @@ namespace
 
     s32 decodeBase64(u8* dst, s32 length, const s8* src)
     {
-        GLTF_ASSERT(NULL != dst);
-        GLTF_ASSERT(0<=length);
-        GLTF_ASSERT(NULL != src);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
+        CPPGLTF_ASSERT(0<=length);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != src);
 
         s32 l=0;
         s32 d=0;
@@ -2162,9 +2267,9 @@ namespace
 
     s32 encodeBase64(FILE* file, s32 length, const u8* src)
     {
-        GLTF_ASSERT(NULL != file);
-        GLTF_ASSERT(0<=length);
-        GLTF_ASSERT(NULL != src);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file);
+        CPPGLTF_ASSERT(0<=length);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != src);
 
         u8 tmp[3];
         s8 dst[4];
@@ -2211,9 +2316,9 @@ namespace
 
     s32 encodeBase64(s8* dst, s32 length, const u8* src)
     {
-        GLTF_ASSERT(NULL != dst);
-        GLTF_ASSERT(0<=length);
-        GLTF_ASSERT(NULL != src);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
+        CPPGLTF_ASSERT(0<=length);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != src);
 
         u8 tmp[3];
         s32 d=0;
@@ -2310,14 +2415,14 @@ namespace
     {
         rhs.capacity_ = 0;
         rhs.length_ = 0;
-        rhs.buffer_.elements_ = NULL;
+        rhs.buffer_.elements_ = CPPGLTF_NULL;
     }
 
     String::~String()
     {
         if(ExpandSize<capacity_){
-            GLTF_FREE(buffer_.elements_);
-            buffer_.elements_ = NULL;
+            CPPGLTF_FREE(buffer_.elements_);
+            buffer_.elements_ = CPPGLTF_NULL;
         }
         capacity_ = 0;
         length_ = 0;
@@ -2332,14 +2437,14 @@ namespace
 
     void String::resize(s32 length)
     {
-        GLTF_ASSERT(0<=length);
+        CPPGLTF_ASSERT(0<=length);
         reserve(length+1);
         length_ = length;
     }
 
     void String::reserve(s32 capacity)
     {
-        GLTF_ASSERT(0<=capacity);
+        CPPGLTF_ASSERT(0<=capacity);
         length_ = 0;
         if(capacity<=capacity_) {
             Char* buffer = getBuffer();
@@ -2347,7 +2452,7 @@ namespace
             return;
         }
         if(ExpandSize<capacity_) {
-            GLTF_FREE(buffer_.elements_);
+            CPPGLTF_FREE(buffer_.elements_);
         }
         if(capacity<=ExpandSize){
             capacity_ = ExpandSize;
@@ -2356,7 +2461,7 @@ namespace
         }
 
         capacity_ = getCapacity(capacity);
-        buffer_.elements_ = (Char*)GLTF_MALLOC(capacity_);
+        buffer_.elements_ = (Char*)CPPGLTF_MALLOC(capacity_);
         buffer_.elements_[0] = '\0';
     }
 
@@ -2371,13 +2476,13 @@ namespace
 
         rhs.capacity_ = 0;
         rhs.length_ = 0;
-        rhs.buffer_.elements_ = NULL;
+        rhs.buffer_.elements_ = CPPGLTF_NULL;
         return *this;
     }
 
     String& String::operator=(const Char* str)
     {
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         s32 length = static_cast<s32>(::strlen(str));
         assign(length, str);
         return *this;
@@ -2385,8 +2490,8 @@ namespace
 
     void String::assign(s32 length, const Char* str)
     {
-        GLTF_ASSERT(NULL != str);
-        GLTF_ASSERT(static_cast<size_t>(length)<=::strlen(str));
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
+        CPPGLTF_ASSERT(static_cast<size_t>(length)<=::strlen(str));
         if(length<=0){
             clear();
             return;
@@ -2418,7 +2523,7 @@ namespace
         s32 capacity = length+1;
         capacity_ = getCapacity(capacity);
         length_ = length;
-        buffer_.elements_ = (Char*)GLTF_MALLOC(capacity_);
+        buffer_.elements_ = (Char*)CPPGLTF_MALLOC(capacity_);
         buffer_.elements_[length_] = '\0';
     }
 
@@ -2433,11 +2538,11 @@ namespace
             return;
         }
         if(ExpandSize<capacity_){
-            GLTF_FREE(buffer_.elements_);
+            CPPGLTF_FREE(buffer_.elements_);
         }
 
         capacity_ = getCapacity(capacity);
-        buffer_.elements_ = (Char*)GLTF_MALLOC(capacity_);
+        buffer_.elements_ = (Char*)CPPGLTF_MALLOC(capacity_);
     }
 
     void String::expandBuffer(s32 length)
@@ -2451,11 +2556,11 @@ namespace
             return;
         }
         capacity = getCapacity(capacity);
-        Char* elements = (Char*)GLTF_MALLOC(capacity);
+        Char* elements = (Char*)CPPGLTF_MALLOC(capacity);
         Char* buffer = getBuffer();
         ::memcpy(elements, buffer, sizeof(Char)*capacity_);
         if(ExpandSize<capacity_){
-            GLTF_FREE(buffer_.elements_);
+            CPPGLTF_FREE(buffer_.elements_);
         }
 
         capacity_ = capacity;
@@ -2469,7 +2574,7 @@ namespace
 
     boolean String::startWith(const Char* str) const
     {
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         const Char* buffer = getBuffer();
         for(s32 i=0; i<length(); ++i){
             if(str[i] == '\0'){
@@ -2502,7 +2607,7 @@ namespace
     ISStream::ISStream()
         :pos_(0)
         ,length_(0)
-        ,str_(NULL)
+        ,str_(CPPGLTF_NULL)
     {
     }
 
@@ -2513,7 +2618,7 @@ namespace
     {
         rhs.pos_ = 0;
         rhs.length_ = 0;
-        rhs.str_ = NULL;
+        rhs.str_ = CPPGLTF_NULL;
     }
 
     ISStream::ISStream(off_t length, const u8* str)
@@ -2521,15 +2626,15 @@ namespace
         ,length_(length)
         ,str_(str)
     {
-        GLTF_ASSERT(0<=length_);
-        GLTF_ASSERT(NULL != str_);
+        CPPGLTF_ASSERT(0<=length_);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str_);
     }
 
     ISStream::~ISStream()
     {
         pos_ = 0;
         length_ = 0;
-        str_ = NULL;
+        str_ = CPPGLTF_NULL;
     }
 
     off_t ISStream::tell() const
@@ -2539,7 +2644,7 @@ namespace
 
     boolean ISStream::seek(off_t pos)
     {
-        GLTF_ASSERT(0<=pos && pos<length_);
+        CPPGLTF_ASSERT(0<=pos && pos<length_);
         pos_ = pos;
         return true;
     }
@@ -2557,14 +2662,14 @@ namespace
     s32 ISStream::unget(s32 c)
     {
         --pos_;
-        GLTF_ASSERT(0<=pos_ && pos_<length_);
-        GLTF_ASSERT(str_[pos_] == c);
+        CPPGLTF_ASSERT(0<=pos_ && pos_<length_);
+        CPPGLTF_ASSERT(str_[pos_] == c);
         return c;
     }
 
     s32 ISStream::read(u8* dst, s32 size)
     {
-        GLTF_ASSERT(NULL != dst);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
         off_t end = pos_+size;
         if(length_<end){
             return 0;
@@ -2592,7 +2697,7 @@ namespace
 
         rhs.pos_ = 0;
         rhs.length_ = 0;
-        rhs.str_ = NULL;
+        rhs.str_ = CPPGLTF_NULL;
         return *this;
     }
 
@@ -2603,51 +2708,42 @@ namespace
     //---------------------------------------------------------------
     IFStream::IFStream()
         :pos_(0)
-        ,file_(NULL)
     {
     }
 
     IFStream::IFStream(IFStream&& rhs)
-        :pos_(rhs.pos_)
-        ,file_(rhs.file_)
+        :parent_type(std::move(rhs))
+        ,pos_(rhs.pos_)
     {
         rhs.pos_ = 0;
-        rhs.file_ = NULL;
-    }
-
-    IFStream::IFStream(FILE* file)
-        :pos_(0)
-        ,file_(file)
-    {
-        GLTF_ASSERT(NULL != file_);
-#if _MSC_VER
-        pos_ = GLTF_FTELL(file_);
-#else
-        pos_ = GLTF_FTELL(file_);
-#endif
     }
 
     IFStream::~IFStream()
     {
         pos_ = 0;
-        file_ = NULL;
+    }
+
+    bool IFStream::open(const Char* filepath)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != filepath);
+        return parent_type::open(filepath, "rb");
     }
 
     off_t IFStream::tell() const
     {
 #if _MSC_VER
-        return GLTF_FTELL(file_)-pos_;
+        return CPPGLTF_FTELL(file_)-pos_;
 #else
-        return GLTF_FTELL(file_)-pos_;
+        return CPPGLTF_FTELL(file_)-pos_;
 #endif
     }
 
     boolean IFStream::seek(off_t pos)
     {
 #if _MSC_VER
-        return 0<=GLTF_FSEEK(file_, pos_+pos, SEEK_SET);
+        return 0<=CPPGLTF_FSEEK(file_, pos_+pos, SEEK_SET);
 #else 
-        return 0<=GLTF_FSEEK(file_, pos_+pos, SEEK_SET);
+        return 0<=CPPGLTF_FSEEK(file_, pos_+pos, SEEK_SET);
 #endif
     }
 
@@ -2663,7 +2759,7 @@ namespace
 
     s32 IFStream::read(u8* dst, s32 size)
     {
-        GLTF_ASSERT(NULL != dst);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
         return static_cast<s32>(fread(dst, size, 1, file_));
     }
 
@@ -2681,7 +2777,7 @@ namespace
         file_ = rhs.file_;
 
         rhs.pos_ = 0;
-        rhs.file_ = NULL;
+        rhs.file_ = CPPGLTF_NULL;
         return *this;
     }
 
@@ -2693,17 +2789,17 @@ namespace
     OSStream::OSStream()
         :capacity_(0)
         ,pos_(0)
-        ,buffer_(NULL)
+        ,buffer_(CPPGLTF_NULL)
     {
     }
 
     OSStream::OSStream(s32 capacity)
         :capacity_(capacity)
         ,pos_(0)
-        ,buffer_(NULL)
+        ,buffer_(CPPGLTF_NULL)
     {
-        GLTF_ASSERT(0<=capacity_);
-        buffer_ = (u8*)GLTF_MALLOC(capacity_);
+        CPPGLTF_ASSERT(0<=capacity_);
+        buffer_ = (u8*)CPPGLTF_MALLOC(capacity_);
     }
 
     OSStream::OSStream(OSStream&& rhs)
@@ -2713,15 +2809,15 @@ namespace
     {
         rhs.capacity_ = 0;
         rhs.pos_ = 0;
-        rhs.buffer_ = NULL;
+        rhs.buffer_ = CPPGLTF_NULL;
     }
 
     OSStream::~OSStream()
     {
         capacity_ = 0;
         pos_ = 0;
-        GLTF_FREE(buffer_);
-        buffer_ = NULL;
+        CPPGLTF_FREE(buffer_);
+        buffer_ = CPPGLTF_NULL;
     }
 
     s32 OSStream::size() const
@@ -2736,16 +2832,16 @@ namespace
 
     s32 OSStream::write(s32 size, const u8* src)
     {
-        GLTF_ASSERT(NULL != buffer_);
-        GLTF_ASSERT(0<=size);
-        GLTF_ASSERT(NULL != src);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != buffer_);
+        CPPGLTF_ASSERT(0<=size);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != src);
 
         s32 p = pos_ + size;
         if(capacity_<p){
             s32 newCapacity = calcNext(p, capacity_);
-            u8* buffer = (u8*)GLTF_MALLOC(newCapacity);
+            u8* buffer = (u8*)CPPGLTF_MALLOC(newCapacity);
             ::memcpy(buffer, buffer_, capacity_);
-            GLTF_FREE(buffer_);
+            CPPGLTF_FREE(buffer_);
             buffer_ = buffer;
             capacity_ = newCapacity;
         }
@@ -2756,8 +2852,8 @@ namespace
 
     boolean OSStream::replaceLast(s32 backLen, const Char* str)
     {
-        GLTF_ASSERT(0<backLen);
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(0<backLen);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         s32 pos = pos_-backLen;
         if(pos<0){
             return false;
@@ -2776,7 +2872,7 @@ namespace
 
         rhs.capacity_ = 0;
         rhs.pos_ = 0;
-        rhs.buffer_ = NULL;
+        rhs.buffer_ = CPPGLTF_NULL;
         return *this;
     }
 
@@ -2795,39 +2891,37 @@ namespace
     //---
     //---------------------------------------------------------------
     OFStream::OFStream()
-        :file_(NULL)
     {
     }
 
     OFStream::OFStream(OFStream&& rhs)
-        :file_(rhs.file_)
-    {
-        rhs.file_ = NULL;
-    }
-
-    OFStream::OFStream(FILE* file)
-        :file_(file)
+        :parent_type(std::move(rhs))
     {
     }
 
     OFStream::~OFStream()
     {
-        file_ = NULL;
+    }
+
+    bool OFStream::open(const Char* filepath)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != filepath);
+        return parent_type::open(filepath, "wb");
     }
 
     s32 OFStream::write(s32 size, const u8* src)
     {
-        GLTF_ASSERT(NULL != file_);
-        GLTF_ASSERT(0<=size);
-        GLTF_ASSERT(NULL != src);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file_);
+        CPPGLTF_ASSERT(0<=size);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != src);
         return static_cast<s32>(fwrite(src, size, 1, file_));
     }
 
     boolean OFStream::replaceLast(s32 length, const Char* str)
     {
-        GLTF_ASSERT(0<length);
-        GLTF_ASSERT(NULL != str);
-        if(GLTF_FSEEK(file_, -length, SEEK_CUR)<0){
+        CPPGLTF_ASSERT(0<length);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
+        if(CPPGLTF_FSEEK(file_, -length, SEEK_CUR)<0){
             return false;
         }
         return 0<fwrite(str, strlen(str), 1, file_);
@@ -2840,7 +2934,7 @@ namespace
         }
         file_ = rhs.file_;
 
-        rhs.file_ = NULL;
+        rhs.file_ = CPPGLTF_NULL;
         return *this;
     }
 
@@ -2854,9 +2948,9 @@ namespace
         ,start_(range.start_)
         ,length_(range.length_)
     {
-        GLTF_ASSERT(NULL != stream_);
-        GLTF_ASSERT(0<=start_);
-        GLTF_ASSERT(0<=length_);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != stream_);
+        CPPGLTF_ASSERT(0<=start_);
+        CPPGLTF_ASSERT(0<=length_);
     }
 
     off_t RangeStream::length() const
@@ -2866,7 +2960,7 @@ namespace
 
     s32 RangeStream::read(u8* dst)
     {
-        GLTF_ASSERT(NULL != dst);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != dst);
         off_t pos = stream_->tell();
         if(!stream_->seek(start_)){
             return 0;
@@ -2880,7 +2974,7 @@ namespace
 
     s32 RangeStream::readAsString(Char* str)
     {
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         off_t pos = stream_->tell();
         if(!stream_->seek(start_)){
             return 0;
@@ -2912,7 +3006,7 @@ namespace
     s32 RangeStream::readAsInt(s32 defaultValue)
     {
         static const s32 MaxSize = 32;
-        GLTF_ASSERT(length_<MaxSize);
+        CPPGLTF_ASSERT(length_<MaxSize);
         off_t pos = stream_->tell();
         if(!stream_->seek(start_)){
             return defaultValue;
@@ -2932,7 +3026,7 @@ namespace
     f32 RangeStream::readAsFloat(f32 defaultValue)
     {
         static const s32 MaxSize = 32;
-        GLTF_ASSERT(length_<MaxSize);
+        CPPGLTF_ASSERT(length_<MaxSize);
         off_t pos = stream_->tell();
         if(!stream_->seek(start_)){
             return defaultValue;
@@ -3012,7 +3106,7 @@ namespace
 
     boolean JSONReader::check(const s8* str)
     {
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         while('\0' != *str){
             s32 c = istream_.get();
             if(c<0){
@@ -3422,7 +3516,7 @@ namespace
             x.array_ = (JSAny*)allocator.alloc(num);
             break;
         default:
-            GLTF_ASSERT(false);
+            CPPGLTF_ASSERT(false);
             break;
         }
         return x;
@@ -3447,7 +3541,7 @@ namespace
             break;
         }
         any.num_ = 0;
-        any.array_ = NULL;
+        any.array_ = CPPGLTF_NULL;
     }
 
 
@@ -3471,18 +3565,18 @@ namespace
         }
         element.capacity_ = 0;
         element.value_.num_ = 0;
-        element.value_.array_ = NULL;
+        element.value_.array_ = CPPGLTF_NULL;
     }
 
     const s32 Allocator::SmaleSizes[] = {1,2,4,8,16,32,64,96,128,160};
 
     Allocator::Allocator()
-        :large_(NULL)
-        ,top_(NULL)
-        ,largeTop_(NULL)
+        :large_(CPPGLTF_NULL)
+        ,top_(CPPGLTF_NULL)
+        ,largeTop_(CPPGLTF_NULL)
     {
         for(s32 i=0; i<TableSize; ++i){
-            table_[i] = NULL;
+            table_[i] = CPPGLTF_NULL;
         }
     }
 
@@ -3494,29 +3588,29 @@ namespace
     void Allocator::destroy()
     {
         for(s32 i=0; i<TableSize; ++i){
-            table_[i] = NULL;
+            table_[i] = CPPGLTF_NULL;
         }
-        large_ = NULL;
-        while(NULL != top_){
+        large_ = CPPGLTF_NULL;
+        while(CPPGLTF_NULL != top_){
             Page* next = top_->next_;
-            GLTF_FREE(top_);
+            CPPGLTF_FREE(top_);
             top_ = next;
         }
-        while(NULL != largeTop_){
+        while(CPPGLTF_NULL != largeTop_){
             Page* next = largeTop_->next_;
-            GLTF_FREE(largeTop_);
+            CPPGLTF_FREE(largeTop_);
             largeTop_ = next;
         }
     }
 
     void* Allocator::alloc(s32 num)
     {
-        GLTF_ASSERT(0<num);
+        CPPGLTF_ASSERT(0<num);
         if(num<=MaxNum){
             s32 index = 0;
             for(;SmaleSizes[index]<num;++index){
             }
-            if(NULL != table_[index]){
+            if(CPPGLTF_NULL != table_[index]){
                 Page* page = table_[index];
                 table_[index] = page->next_;
                 return page;
@@ -3524,9 +3618,9 @@ namespace
             return allocate(SmaleSizes[index]);
 
         }else{
-            Page* prev = NULL;
+            Page* prev = CPPGLTF_NULL;
             Page* page = large_;
-            while(NULL != page){
+            while(CPPGLTF_NULL != page){
                 if(num<=large_->capacity_){
                     if(page == large_){
                         large_ = large_->next_;
@@ -3536,7 +3630,7 @@ namespace
                     return page;
                 }
             }
-            PageMem* top = (PageMem*)GLTF_MALLOC(UnitSize*(num+1));
+            PageMem* top = (PageMem*)CPPGLTF_MALLOC(UnitSize*(num+1));
             top->page_.capacity_ = 0;
             page = &(top+1)->page_;
             top->page_.next_ = largeTop_;
@@ -3547,7 +3641,7 @@ namespace
 
     void Allocator::dealloc(s32 num, void* ptr)
     {
-        if(num<=0 || NULL==ptr){
+        if(num<=0 || CPPGLTF_NULL==ptr){
             return;
         }
         Page* page = (Page*)ptr;
@@ -3566,9 +3660,9 @@ namespace
 
     void* Allocator::allocate(s32 num)
     {
-        Page* prev = NULL;
+        Page* prev = CPPGLTF_NULL;
         Page* page = top_;
-        while(NULL != page){
+        while(CPPGLTF_NULL != page){
             if(num<=page->capacity_){
                 s32 capacity = page->capacity_-num;
                 s32 d = UnitNum-page->capacity_;
@@ -3586,7 +3680,7 @@ namespace
             page = page->next_;
         }
 
-        PageMem* top = (PageMem*)GLTF_MALLOC(UnitSize*UnitNum);
+        PageMem* top = (PageMem*)CPPGLTF_MALLOC(UnitSize*UnitNum);
         top->page_.capacity_ = UnitNum-num-1;
         page = &(top+1)->page_;
         top->page_.next_ = top_;
@@ -3727,14 +3821,14 @@ namespace
     glTFBase::StringTable::StringTable()
         :capacity_(0)
         ,length_(0)
-        ,strings_(NULL)
+        ,strings_(CPPGLTF_NULL)
     {
     }
 
     glTFBase::StringTable::~StringTable()
     {
-        GLTF_FREE(strings_);
-        strings_ = NULL;
+        CPPGLTF_FREE(strings_);
+        strings_ = CPPGLTF_NULL;
         length_ = 0;
         capacity_ = 0;
     }
@@ -3750,9 +3844,9 @@ namespace
         s32 capacity = start + length+1;
         if(capacity_<capacity){
             capacity = (capacity+0x7F) & ~0x7FU;
-            Char* strings = (Char*)GLTF_MALLOC(capacity*sizeof(Char));
+            Char* strings = (Char*)CPPGLTF_MALLOC(capacity*sizeof(Char));
             memcpy(strings, strings_, sizeof(Char)*capacity_);
-            GLTF_FREE(strings_);
+            CPPGLTF_FREE(strings_);
             strings_ = strings;
             capacity_ = capacity;
         }
@@ -3776,7 +3870,7 @@ namespace
     glTFBase::glTFBase()
         :size_(0)
         ,capacity_(0)
-        ,elements_(NULL)
+        ,elements_(CPPGLTF_NULL)
     {
     }
 
@@ -3798,14 +3892,14 @@ namespace
     {
         strings_.clear();
         key_.clear();
-        if(NULL != elements_){
+        if(CPPGLTF_NULL != elements_){
             for(s32 i = 0; i<size_; ++i){
                 JSElement::destroy(allocator_, elements_[i]);
             }
             allocator_.dealloc(capacity_, elements_);
             size_ = 0;
             capacity_ = 0;
-            elements_ = NULL;
+            elements_ = CPPGLTF_NULL;
         }
         allocator_.destroy();
     }
@@ -3820,7 +3914,7 @@ namespace
         ++size_;
     }
 
-    void glTFBase::endObject(gltf::RangeStream /*object*/)
+    void glTFBase::endObject(RangeStream /*object*/)
     {
         if(0<size_){
             --size_;
@@ -3837,7 +3931,7 @@ namespace
         ++size_;
     }
 
-    void glTFBase::endArray(gltf::RangeStream /*stream*/)
+    void glTFBase::endArray(RangeStream /*stream*/)
     {
         if(0<size_){
             --size_;
@@ -3846,33 +3940,33 @@ namespace
 
     void glTFBase::root(s32 type, RangeStream /*value*/)
     {
-        if(type != JSON_Object || NULL == elements_){
+        if(type != JSON_Object || CPPGLTF_NULL == elements_){
             return;
         }
         parseGlTF(elements_[0].value_);
     }
 
-    void glTFBase::value(gltf::s32 type, gltf::RangeStream v)
+    void glTFBase::value(s32 type, RangeStream v)
     {
         if(size_<=0){
             return;
         }
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         JSElement& element = elements_[size_-1];
-        GLTF_ASSERT(JSON_Array == element.value_.type_);
+        CPPGLTF_ASSERT(JSON_Array == element.value_.type_);
         expandArray(element);
 
         JSAny& val = element.value_.array_[element.value_.num_];
         ++element.value_.num_;
         switch(type){
         case JSON_Object:
-            GLTF_ASSERT((size_+1)<=capacity_);
-            GLTF_ASSERT(JSON_Object == elements_[size_].value_.type_);
+            CPPGLTF_ASSERT((size_+1)<=capacity_);
+            CPPGLTF_ASSERT(JSON_Object == elements_[size_].value_.type_);
             val = elements_[size_].value_;
             break;
         case JSON_Array:
-            GLTF_ASSERT((size_+1)<=capacity_);
-            GLTF_ASSERT(JSON_Array == elements_[size_].value_.type_);
+            CPPGLTF_ASSERT((size_+1)<=capacity_);
+            CPPGLTF_ASSERT(JSON_Array == elements_[size_].value_.type_);
             val = elements_[size_].value_;
             break;
         case JSON_String:
@@ -3899,19 +3993,19 @@ namespace
             val.type_ = JSON_Null;
             break;
         default:
-            GLTF_ASSERT(false);
+            CPPGLTF_ASSERT(false);
             break;
         }
     }
 
-    void glTFBase::keyValue(gltf::RangeStream key, gltf::s32 type, gltf::RangeStream value)
+    void glTFBase::keyValue(RangeStream key, s32 type, RangeStream value)
     {
         if(size_<=0){
             return;
         }
-        GLTF_ASSERT(0<size_);
+        CPPGLTF_ASSERT(0<size_);
         JSElement& element = elements_[size_-1];
-        GLTF_ASSERT(JSON_Object == element.value_.type_);
+        CPPGLTF_ASSERT(JSON_Object == element.value_.type_);
         expandObject(element);
 
         key.readAsString(key_);
@@ -3926,13 +4020,13 @@ namespace
         JSAny& val = keyValue.value_;
         switch(type){
         case JSON_Object:
-            GLTF_ASSERT((size_+1)<=capacity_);
-            GLTF_ASSERT(JSON_Object == elements_[size_].value_.type_);
+            CPPGLTF_ASSERT((size_+1)<=capacity_);
+            CPPGLTF_ASSERT(JSON_Object == elements_[size_].value_.type_);
             val = elements_[size_].value_;
             break;
         case JSON_Array:
-            GLTF_ASSERT((size_+1)<=capacity_);
-            GLTF_ASSERT(JSON_Array == elements_[size_].value_.type_);
+            CPPGLTF_ASSERT((size_+1)<=capacity_);
+            CPPGLTF_ASSERT(JSON_Array == elements_[size_].value_.type_);
             val = elements_[size_].value_;
             break;
         case JSON_String:
@@ -3959,12 +4053,12 @@ namespace
             val.type_ = JSON_Null;
             break;
         default:
-            GLTF_ASSERT(false);
+            CPPGLTF_ASSERT(false);
             break;
         }
     }
 
-    void glTFBase::onError(gltf::s32 /*line*/, gltf::s32 /*charCount*/)
+    void glTFBase::onError(s32 /*line*/, s32 /*charCount*/)
     {
     }
 
@@ -4044,20 +4138,20 @@ namespace
 
     bool glTFBase::getBoolean(const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_True==value.type_ || JSON_False==value.type_);
+        CPPGLTF_ASSERT(JSON_True==value.type_ || JSON_False==value.type_);
         return JSON_True == value.type_? true : false;
     }
 
     f32 glTFBase::getNumber(const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Integer==value.type_ || JSON_Float==value.type_);
+        CPPGLTF_ASSERT(JSON_Integer==value.type_ || JSON_Float==value.type_);
         return JSON_Integer == value.type_? static_cast<f32>(value.int_) : value.float_;
     }
 
     void glTFBase::getNumbers(s32 num, Number* x, const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Array == value.type_);
-        GLTF_ASSERT(value.num_<=num);
+        CPPGLTF_ASSERT(JSON_Array == value.type_);
+        CPPGLTF_ASSERT(value.num_<=num);
         for(s32 i=0; i<value.num_; ++i){
             switch(value.array_[i].type_)
             {
@@ -4073,8 +4167,8 @@ namespace
 
     void glTFBase::getVec2(f32 v[2], const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Array==value.type_);
-        GLTF_ASSERT(2<=value.num_);
+        CPPGLTF_ASSERT(JSON_Array==value.type_);
+        CPPGLTF_ASSERT(2<=value.num_);
         for(s32 i=0; i<2; ++i){
             v[i] = getNumber(value.array_[i]);
         }
@@ -4082,8 +4176,8 @@ namespace
 
     void glTFBase::getVec3(f32 v[3], const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Array==value.type_);
-        GLTF_ASSERT(3<=value.num_);
+        CPPGLTF_ASSERT(JSON_Array==value.type_);
+        CPPGLTF_ASSERT(3<=value.num_);
         for(s32 i=0; i<3; ++i){
             v[i] = getNumber(value.array_[i]);
         }
@@ -4091,8 +4185,8 @@ namespace
 
     void glTFBase::getVec4(f32 v[4], const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Array==value.type_);
-        GLTF_ASSERT(4<=value.num_);
+        CPPGLTF_ASSERT(JSON_Array==value.type_);
+        CPPGLTF_ASSERT(4<=value.num_);
         for(s32 i=0; i<4; ++i){
             v[i] = getNumber(value.array_[i]);
         }
@@ -4100,8 +4194,8 @@ namespace
 
     void glTFBase::getMat44(f32 m[16], const JSAny& value) const
     {
-        GLTF_ASSERT(JSON_Array==value.type_);
-        GLTF_ASSERT(16<=value.num_);
+        CPPGLTF_ASSERT(JSON_Array==value.type_);
+        CPPGLTF_ASSERT(16<=value.num_);
         for(s32 i=0; i<16; ++i){
             m[i] = getNumber(value.array_[i]);
         }
@@ -4339,7 +4433,7 @@ namespace
         byteLength_ = -1;
         extensions_.initialize();
         extras_.initialize();
-        data_ = NULL;
+        data_ = CPPGLTF_NULL;
     }
 
     boolean Buffer::checkRequirements() const
@@ -4362,15 +4456,22 @@ namespace
         if(length<MaxBuffer){
             buff = buffer;
         }else{
-            buff = (Char*)GLTF_MALLOC(sizeof(Char)*(length+1));
+            buff = (Char*)CPPGLTF_MALLOC(sizeof(Char)*(length+1));
         }
         ::memcpy(buff, directory.c_str(), directory.length());
         ::memcpy(buff+directory.length(), uri.c_str(), uri.length());
         buff[length] = '\0';
 
-        FILE* file = fopen_s(buff, mode);
+#ifdef _MSC_VER
+        FILE* file = CPPGLTF_NULL;
+        if(0 != fopen_s(&file, buff, mode)){
+            file = CPPGLTF_NULL;
+        }
+#else
+        FILE* file = fopen(buff, mode);
+#endif
         if(buff != buffer){
-            GLTF_FREE(buff);
+            CPPGLTF_FREE(buff);
         }
         return file;
     }
@@ -4384,7 +4485,7 @@ namespace
         }
 
         FILE* file = open(buffer.uri_, directory, "rb");
-        if(NULL == file){
+        if(CPPGLTF_NULL == file){
             return false;
         }
         size_type ret = fread(buffer.data_, buffer.byteLength_, 1, file);
@@ -4401,18 +4502,18 @@ namespace
         static const s32 l = static_cast<s32>(::strlen(Base64URL));
         if(buffer.uri_.startWith(Base64URL)){
             s32 length = getLengthEncodedBase64(buffer.byteLength_);
-            s8* buff = (s8*)GLTF_MALLOC(length+l+1);
+            s8* buff = (s8*)CPPGLTF_MALLOC(length+l+1);
             ::memcpy(buff, buffer.uri_.c_str(), l);
             encodeBase64(buff+l, length, buffer.data_);
             length +=l;
             buff[length] = '\0';
             uri.assign(length, reinterpret_cast<const Char*>(buff));
-            GLTF_FREE(buff);
+            CPPGLTF_FREE(buff);
             return true;
         }
 
         FILE* file = open(buffer.uri_, directory, "wb");
-        if(NULL == file){
+        if(CPPGLTF_NULL == file){
             return false;
         }
         size_type ret = fwrite(buffer.data_, buffer.byteLength_, 1, file);
@@ -4754,16 +4855,16 @@ namespace
     //---------------------------------------------------------------
     glTF::glTF()
         :size_(0)
-        ,bin_(NULL)
+        ,bin_(CPPGLTF_NULL)
         ,glbSize_(0)
-        ,glbBin_(NULL)
+        ,glbBin_(CPPGLTF_NULL)
     {
     }
 
     glTF::~glTF()
     {
-        GLTF_FREE(bin_);
-        GLTF_FREE(glbBin_);
+        CPPGLTF_FREE(bin_);
+        CPPGLTF_FREE(glbBin_);
     }
 
     void glTF::initialize()
@@ -4792,7 +4893,7 @@ namespace
     void glTF::setDirectory(const Char* directory)
     {
         directory_.clear();
-        if(NULL == directory){
+        if(CPPGLTF_NULL == directory){
             return;
         }
         s32 len = static_cast<s32>(::strlen(directory));
@@ -4916,9 +5017,9 @@ namespace
 
     void glTF::allocate(u32 size)
     {
-        GLTF_FREE(bin_);
+        CPPGLTF_FREE(bin_);
         size_ = size;
-        bin_ = (u8*)GLTF_MALLOC(size_);
+        bin_ = (u8*)CPPGLTF_MALLOC(size_);
     }
 
     u32 glTF::size() const
@@ -4928,21 +5029,21 @@ namespace
 
     const u8* glTF::getBin(u32 offset) const
     {
-        GLTF_ASSERT(offset<size_);
+        CPPGLTF_ASSERT(offset<size_);
         return bin_+offset;
     }
 
     u8* glTF::getBin(u32 offset)
     {
-        GLTF_ASSERT(offset<size_);
+        CPPGLTF_ASSERT(offset<size_);
         return bin_+offset;
     }
 
     void glTF::allocateGLB(u32 size)
     {
-        GLTF_FREE(glbBin_);
+        CPPGLTF_FREE(glbBin_);
         glbSize_ = size;
-        glbBin_ = (u8*)GLTF_MALLOC(glbSize_);
+        glbBin_ = (u8*)CPPGLTF_MALLOC(glbSize_);
     }
 
     u32 glTF::sizeGLB() const
@@ -4952,13 +5053,13 @@ namespace
 
     const u8* glTF::getGLB(u32 offset) const
     {
-        GLTF_ASSERT(offset<glbSize_);
+        CPPGLTF_ASSERT(offset<glbSize_);
         return glbBin_+offset;
     }
 
     u8* glTF::getGLB(u32 offset)
     {
-        GLTF_ASSERT(offset<glbSize_);
+        CPPGLTF_ASSERT(offset<glbSize_);
         return glbBin_+offset;
     }
 
@@ -6273,7 +6374,7 @@ namespace
     //---------------------------------------------------------------
     glTFWriter::glTFWriter(OStream& ostream)
         :indent_(0)
-        ,gltf_(NULL)
+        ,gltf_(CPPGLTF_NULL)
         ,ostream0_(ostream)
     {
         ostream1_ = &ostream0_;
@@ -6388,7 +6489,7 @@ namespace
             break;
         }
 
-        gltf_ = NULL;
+        gltf_ = CPPGLTF_NULL;
         return true;
     }
 
@@ -6433,7 +6534,7 @@ namespace
 
     void glTFWriter::format(const Char* str, ...)
     {
-        GLTF_ASSERT(NULL != str);
+        CPPGLTF_ASSERT(CPPGLTF_NULL != str);
         va_list args;
         va_start(args, str);
 #if _MSC_VER
@@ -6447,7 +6548,7 @@ namespace
         if(length<MaxBuffer){
             buff = buffer;
         }else{
-            buff = (Char*)GLTF_MALLOC(sizeof(Char)*(length+1));
+            buff = (Char*)CPPGLTF_MALLOC(sizeof(Char)*(length+1));
         }
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -6457,7 +6558,7 @@ namespace
 #endif //defined(_WIN32) || defined(_WIN64)
         ostream1_->write(length, buff);
         if(buffer != buff){
-            GLTF_FREE(buff);
+            CPPGLTF_FREE(buff);
         }
         va_end(args);
     }
@@ -6570,7 +6671,7 @@ namespace
 
     void glTFWriter::printObjectProperty(const Char* key, s32 num, const f32* value)
     {
-        GLTF_ASSERT(0<num);
+        CPPGLTF_ASSERT(0<num);
         --num;
         printIndent();
         print(key);
@@ -6587,7 +6688,7 @@ namespace
 
     void glTFWriter::printObjectProperty(const Char* key, s32 num, const s32* value)
     {
-        GLTF_ASSERT(0<num);
+        CPPGLTF_ASSERT(0<num);
         --num;
         printIndent();
         print(key);
@@ -6604,7 +6705,7 @@ namespace
 
     void glTFWriter::printObjectProperty(const Char* key, s32 num, const u32* value)
     {
-        GLTF_ASSERT(0<num);
+        CPPGLTF_ASSERT(0<num);
         --num;
         printIndent();
         print(key);
