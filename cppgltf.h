@@ -41,6 +41,8 @@ put '#define CPPGLTF_IMPLEMENTATION' before including this file to create the im
 #include <cstring>
 #include <utility>
 #include <cstdarg>
+#include <cfloat>
+#include <cmath>
 
 namespace cppgltf
 {
@@ -1428,8 +1430,8 @@ namespace cppgltf
     class Accessor
     {
     public:
-        static const u32 Flag_Min = 0;
-        static const u32 Flag_Max = 1;
+        static const u32 Flag_Min = 0x01U<<0;
+        static const u32 Flag_Max = 0x01U<<1;
 
         void initialize();
         boolean checkRequirements() const;
@@ -1679,9 +1681,9 @@ namespace cppgltf
         void initialize();
         boolean checkRequirements() const;
 
-        s8 semantic_;
+        s8 semanticType_;
         s8 semanticIndex_;
-        s16 index_;
+        s16 accessor_;
     };
 
     class MorphTarget
@@ -3294,7 +3296,7 @@ namespace
                 return onError();
             }
             c = istream_.get();
-            if(c<0){
+            if(c==EOF){
                 return onError();
             }
         }
@@ -3465,7 +3467,7 @@ namespace
                 return JSON_Error;
             }
             type = JSON_Float;
-        }else if(c<0){
+        }else if(EOF==c){
             return onError();
         }
         setLength(number);
@@ -3474,10 +3476,11 @@ namespace
 
     s32 JSONReader::getDigit(boolean unget)
     {
+        s32 c;
         for(;;){
-            s32 c = istream_.get();
-            if(c<0){
-                onError();
+            c = istream_.get();
+            if(EOF==c){
+                return onError();
             }
             if(!isNumber(c)){
                 if(unget){
@@ -3486,7 +3489,7 @@ namespace
                 break;
             }
         }
-        return JSON_OK;
+        return c;
     }
 
     boolean JSONReader::isNumber(s32 c) const
@@ -4057,10 +4060,16 @@ namespace
             break;
         }
     }
-
+#ifdef _DEBUG
+    void glTFBase::onError(s32 line, s32 charCount)
+    {
+        printf("error around line %d %d\n", line, charCount);
+    }
+#else
     void glTFBase::onError(s32 /*line*/, s32 /*charCount*/)
     {
     }
+#endif
 
 
     namespace
@@ -4709,20 +4718,20 @@ namespace
     //---------------------------------------------------------------
     void Attribute::initialize()
     {
-        semantic_ = -1;
+        semanticType_ = -1;
         semanticIndex_ = -1;
-        index_ = -1;
+        accessor_ = -1;
     }
 
     boolean Attribute::checkRequirements() const
     {
-        if(semantic_<0){
+        if(semanticType_<0){
             return false;
         }
         if(semanticIndex_<0){
             return false;
         }
-        if(index_<0){
+        if(accessor_<0){
             return false;
         }
         return true;
@@ -5919,83 +5928,83 @@ namespace
     void glTFHandler::parseAttribute(Attribute& attribute, const JSKeyValue& keyValue)
     {
         attribute.initialize();
-        attribute.index_ = static_cast<s16>(keyValue.value_.int_);
+        attribute.accessor_ = static_cast<s16>(keyValue.value_.int_);
         switch(keyValue.key_)
         {
         case GLTF_POSITION:
-            attribute.semantic_ = GLTF_ATTRIBUTE_POSITION;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_POSITION;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_NORMAL:
-            attribute.semantic_ = GLTF_ATTRIBUTE_NORMAL;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_NORMAL;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_TANGENT:
-            attribute.semantic_ = GLTF_ATTRIBUTE_TANGENT;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_TANGENT;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_TEXCOORD_0:
-            attribute.semantic_ = GLTF_ATTRIBUTE_TEXCOORD;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_TEXCOORD;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_TEXCOORD_1:
-            attribute.semantic_ = GLTF_ATTRIBUTE_TEXCOORD;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_TEXCOORD;
             attribute.semanticIndex_ = 1;
             break;
         case GLTF_TEXCOORD_2:
-            attribute.semantic_ = GLTF_ATTRIBUTE_TEXCOORD;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_TEXCOORD;
             attribute.semanticIndex_ = 2;
             break;
         case GLTF_TEXCOORD_3:
-            attribute.semantic_ = GLTF_ATTRIBUTE_TEXCOORD;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_TEXCOORD;
             attribute.semanticIndex_ = 3;
             break;
         case GLTF_COLOR_0:
-            attribute.semantic_ = GLTF_ATTRIBUTE_COLOR;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_COLOR;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_COLOR_1:
-            attribute.semantic_ = GLTF_ATTRIBUTE_COLOR;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_COLOR;
             attribute.semanticIndex_ = 1;
             break;
         case GLTF_COLOR_2:
-            attribute.semantic_ = GLTF_ATTRIBUTE_COLOR;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_COLOR;
             attribute.semanticIndex_ = 2;
             break;
         case GLTF_COLOR_3:
-            attribute.semantic_ = GLTF_ATTRIBUTE_COLOR;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_COLOR;
             attribute.semanticIndex_ = 3;
             break;
         case GLTF_JOINTS_0:
-            attribute.semantic_ = GLTF_ATTRIBUTE_JOINTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_JOINTS;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_JOINTS_1:
-            attribute.semantic_ = GLTF_ATTRIBUTE_JOINTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_JOINTS;
             attribute.semanticIndex_ = 1;
             break;
         case GLTF_JOINTS_2:
-            attribute.semantic_ = GLTF_ATTRIBUTE_JOINTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_JOINTS;
             attribute.semanticIndex_ = 2;
             break;
         case GLTF_JOINTS_3:
-            attribute.semantic_ = GLTF_ATTRIBUTE_JOINTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_JOINTS;
             attribute.semanticIndex_ = 3;
             break;
         case GLTF_WEIGHTS_0:
-            attribute.semantic_ = GLTF_ATTRIBUTE_WEIGHTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_WEIGHTS;
             attribute.semanticIndex_ = 0;
             break;
         case GLTF_WEIGHTS_1:
-            attribute.semantic_ = GLTF_ATTRIBUTE_WEIGHTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_WEIGHTS;
             attribute.semanticIndex_ = 1;
             break;
         case GLTF_WEIGHTS_2:
-            attribute.semantic_ = GLTF_ATTRIBUTE_WEIGHTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_WEIGHTS;
             attribute.semanticIndex_ = 2;
             break;
         case GLTF_WEIGHTS_3:
-            attribute.semantic_ = GLTF_ATTRIBUTE_WEIGHTS;
+            attribute.semanticType_ = GLTF_ATTRIBUTE_WEIGHTS;
             attribute.semanticIndex_ = 3;
             break;
         }
@@ -7568,77 +7577,77 @@ namespace
         {
             Indent indent(indent_);
             for(s32 i=0; i<attributes.size(); ++i){
-                switch(attributes[i].semantic_){
+                switch(attributes[i].semanticType_){
                 case GLTF_ATTRIBUTE_POSITION:
-                    printObjectProperty("POSITION", attributes[i].index_);
+                    printObjectProperty("POSITION", attributes[i].accessor_);
                     break;
                 case GLTF_ATTRIBUTE_NORMAL:
-                    printObjectProperty("NORMAL", attributes[i].index_);
+                    printObjectProperty("NORMAL", attributes[i].accessor_);
                     break;
                 case GLTF_ATTRIBUTE_TANGENT:
-                    printObjectProperty("TANGENT", attributes[i].index_);
+                    printObjectProperty("TANGENT", attributes[i].accessor_);
                     break;
                 case GLTF_ATTRIBUTE_TEXCOORD:
                     switch(attributes[i].semanticIndex_){
                     case 0:
-                        printObjectProperty("TEXCOORD_0", attributes[i].index_);
+                        printObjectProperty("TEXCOORD_0", attributes[i].accessor_);
                         break;
                     case 1:
-                        printObjectProperty("TEXCOORD_1", attributes[i].index_);
+                        printObjectProperty("TEXCOORD_1", attributes[i].accessor_);
                         break;
                     case 2:
-                        printObjectProperty("TEXCOORD_2", attributes[i].index_);
+                        printObjectProperty("TEXCOORD_2", attributes[i].accessor_);
                         break;
                     default:
-                        printObjectProperty("TEXCOORD_3", attributes[i].index_);
+                        printObjectProperty("TEXCOORD_3", attributes[i].accessor_);
                         break;
                     }
                     break;
                 case GLTF_ATTRIBUTE_COLOR:
                     switch(attributes[i].semanticIndex_){
                     case 0:
-                        printObjectProperty("COLOR_0", attributes[i].index_);
+                        printObjectProperty("COLOR_0", attributes[i].accessor_);
                         break;
                     case 1:
-                        printObjectProperty("COLOR_1", attributes[i].index_);
+                        printObjectProperty("COLOR_1", attributes[i].accessor_);
                         break;
                     case 2:
-                        printObjectProperty("COLOR_2", attributes[i].index_);
+                        printObjectProperty("COLOR_2", attributes[i].accessor_);
                         break;
                     default:
-                        printObjectProperty("COLOR_3", attributes[i].index_);
+                        printObjectProperty("COLOR_3", attributes[i].accessor_);
                         break;
                     }
                     break;
                 case GLTF_ATTRIBUTE_JOINTS:
                     switch(attributes[i].semanticIndex_){
                     case 0:
-                        printObjectProperty("JOINTS_0", attributes[i].index_);
+                        printObjectProperty("JOINTS_0", attributes[i].accessor_);
                         break;
                     case 1:
-                        printObjectProperty("JOINTS_1", attributes[i].index_);
+                        printObjectProperty("JOINTS_1", attributes[i].accessor_);
                         break;
                     case 2:
-                        printObjectProperty("JOINTS_2", attributes[i].index_);
+                        printObjectProperty("JOINTS_2", attributes[i].accessor_);
                         break;
                     default:
-                        printObjectProperty("JOINTS_3", attributes[i].index_);
+                        printObjectProperty("JOINTS_3", attributes[i].accessor_);
                         break;
                     }
                     break;
                 case GLTF_ATTRIBUTE_WEIGHTS:
                     switch(attributes[i].semanticIndex_){
                     case 0:
-                        printObjectProperty("WEIGHTS_0", attributes[i].index_);
+                        printObjectProperty("WEIGHTS_0", attributes[i].accessor_);
                         break;
                     case 1:
-                        printObjectProperty("WEIGHTS_1", attributes[i].index_);
+                        printObjectProperty("WEIGHTS_1", attributes[i].accessor_);
                         break;
                     case 2:
-                        printObjectProperty("WEIGHTS_2", attributes[i].index_);
+                        printObjectProperty("WEIGHTS_2", attributes[i].accessor_);
                         break;
                     default:
-                        printObjectProperty("WEIGHTS_3", attributes[i].index_);
+                        printObjectProperty("WEIGHTS_3", attributes[i].accessor_);
                         break;
                     }
                     break;
