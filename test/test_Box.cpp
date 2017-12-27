@@ -61,10 +61,10 @@ TEST_CASE("sample Box can be loaded", "[Box]"){
         REQUIRE(("Mesh" == gltf.meshes_[0].name_));
         REQUIRE((1 == gltf.meshes_[0].primitives_.size()));
         REQUIRE((2 == gltf.meshes_[0].primitives_[0].attributes_.size()));
-        REQUIRE((cppgltf::GLTF_ATTRIBUTE_NORMAL == gltf.meshes_[0].primitives_[0].attributes_[0].semantic_));
-        REQUIRE((1 == gltf.meshes_[0].primitives_[0].attributes_[0].index_));
-        REQUIRE((cppgltf::GLTF_ATTRIBUTE_POSITION == gltf.meshes_[0].primitives_[0].attributes_[1].semantic_));
-        REQUIRE((2 == gltf.meshes_[0].primitives_[0].attributes_[1].index_));
+        REQUIRE((cppgltf::GLTF_ATTRIBUTE_NORMAL == gltf.meshes_[0].primitives_[0].attributes_[0].semanticType_));
+        REQUIRE((1 == gltf.meshes_[0].primitives_[0].attributes_[0].semanticIndex_));
+        REQUIRE((cppgltf::GLTF_ATTRIBUTE_POSITION == gltf.meshes_[0].primitives_[0].attributes_[1].semanticType_));
+        REQUIRE((2 == gltf.meshes_[0].primitives_[0].attributes_[1].semanticIndex_));
         REQUIRE((0 == gltf.meshes_[0].primitives_[0].indices_));
         REQUIRE((cppgltf::GLTF_PRIMITIVE_TRIANGLES == gltf.meshes_[0].primitives_[0].mode_));
         REQUIRE((0 == gltf.meshes_[0].primitives_[0].material_));

@@ -554,7 +554,7 @@ namespace cppgltf
     typename Array<T>::this_type& Array<T>::operator=(this_type&& rhs)
     {
         if(this == &rhs){
-            return;
+            return *this;
         }
         capacity_ = rhs.capacity_;
         size_ = rhs.size_;
@@ -563,6 +563,7 @@ namespace cppgltf
         rhs.capacity_ = 0;
         rhs.size_ = 0;
         rhs.items_ = CPPGLTF_NULL;
+        return *this;
     }
 
     //----------------------------------------------------
@@ -1942,7 +1943,7 @@ namespace cppgltf
     class GLBReader : public JSONReader
     {
     public:
-        static const u32 Magic = 'FTlg';
+        static const u32 Magic = 0x46546C67U;//'FTlg';
         static const u32 Version = 2;
         static const u32 ChunkType_JSON = 0x4E4F534AU;
         static const u32 ChunkType_BIN  = 0x004E4942U;
@@ -6382,8 +6383,8 @@ namespace
     //---
     //---------------------------------------------------------------
     glTFWriter::glTFWriter(OStream& ostream)
-        :indent_(0)
-        ,gltf_(CPPGLTF_NULL)
+        :gltf_(CPPGLTF_NULL)
+        ,indent_(0)
         ,ostream0_(ostream)
     {
         ostream1_ = &ostream0_;
@@ -6404,6 +6405,8 @@ namespace
         switch(type){
         case GLTF_FILE_GLB:
             ostream1_ = &osstream;
+            break;
+        default:
             break;
         }
         ostream1_->write('{');
@@ -6495,6 +6498,8 @@ namespace
             ostream1_->write(chunk);
             ostream1_->write(gltf.sizeGLB(), gltf.getGLB(0));
         }
+            break;
+        default:
             break;
         }
 
