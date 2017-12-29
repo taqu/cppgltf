@@ -1804,11 +1804,21 @@ namespace cppgltf
     class glTF
     {
     public:
+        struct SortNode
+        {
+            s32 parent_; ///< parent's index. If this is root, parent_ is -1
+            s32 oldId_; ///< index in a Node array
+            s32 numChildren_; ///< number of children
+            s32 childrenStart_; ///< start index of children
+        };
+
         glTF();
         ~glTF();
 
         void initialize();
         void setDirectory(const Char* directory);
+        void sortNodes();
+
         boolean loadBuffers();
         boolean loadGLBBuffers();
 
@@ -1828,6 +1838,7 @@ namespace cppgltf
         Array<Material> materials_;
         Array<Mesh> meshes_;
         Array<Node> nodes_;
+        Array<SortNode> sortedNodes_; 
         Array<Sampler> samplers_;
         s32 scene_;
         Array<Scene> scenes_;
@@ -1848,6 +1859,9 @@ namespace cppgltf
     private:
         glTF(const glTF&) =delete;
         glTF& operator=(const glTF&) =delete;
+
+        static boolean isRoot(s32 node, const Array<Node>& nodes);
+        static void addChildren(s32 parent, Array<SortNode>& dst, const Array<Node>& nodes);
 
         u32 size_;
         u8* bin_;
@@ -4891,6 +4905,7 @@ namespace
         materials_.clear();
         meshes_.clear();
         nodes_.clear();
+        sortedNodes_.clear();
         samplers_.clear();
         scene_ = 0;
         scenes_.clear();
@@ -4913,6 +4928,58 @@ namespace
         directory_.assign(len, directory);
         if('/' != directory[len-1]){
             directory_.push_back('/');
+        }
+    }
+
+    void glTF::sortNodes()
+    {
+        sortedNodes_.clear();
+        sortedNodes_.reserve(nodes_.size());
+
+        //add root nodes
+        for(s32 i=0; i<nodes_.size(); ++i){
+            if(isRoot(i, nodes_)){
+                SortNode n;
+                n.oldId_ = i;
+                n.parent_ = -1;
+                n.numChildren_ = 0;
+                n.childrenStart_ = -1;
+                sortedNodes_.push_back(n);
+            }
+        }
+
+        //By the glTF specification, a node hierarchy must be a strict tree.
+        //So this algorithm works, and will end sometime.
+        for(s32 i=0; i<sortedNodes_.size(); ++i){
+            addChildren(i, sortedNodes_, nodes_);
+        }
+   }
+
+    boolean glTF::isRoot(s32 node, const Array<Node>& nodes)
+    {
+        for(s32 i=0; i<nodes.size(); ++i){
+            for(s32 j=0; j<nodes[i].children_.size(); ++j){
+                if(node == nodes[i].children_[j]){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    void glTF::addChildren(s32 parent, Array<SortNode>& dst, const Array<Node>& nodes)
+    {
+        const Node& parentNode = nodes[dst[parent].oldId_];
+        dst[parent].childrenStart_ = dst.size();
+        dst[parent].numChildren_ = parentNode.children_.size();
+        //add children
+        for(s32 i=0; i<parentNode.children_.size(); ++i){
+            SortNode n;
+            n.oldId_ = parentNode.children_[i];
+            n.parent_ = parent;
+            n.numChildren_ = nodes[n.oldId_].children_.size();
+            n.childrenStart_ = -1;
+            dst.push_back(n);
         }
     }
 
@@ -5201,6 +5268,9 @@ namespace
                 break;
             }
         }
+
+        //Topological sorting nodes
+        gltf_.sortNodes();
         gltf_.loadBuffers();
     }
 
