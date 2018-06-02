@@ -62,6 +62,10 @@ namespace cppgltf
 #   define CPPGLTF_NULL (void*)0
 #endif
 
+#ifndef CPPGLTF_ASSERT
+#define CPPGLTF_ASSERT(exp) assert(exp)
+#endif
+
 #ifndef CPPGLTF_TYPES
 #define CPPGLTF_TYPES
     typedef int8_t s8;
@@ -87,30 +91,75 @@ namespace cppgltf
 #ifdef _MSC_VER
 #ifndef CPPGLTF_OFF_T
 #define CPPGLTF_OFF_T
-    typedef s32 off_t;
+    typedef s64 off_t;
 #endif
 
     #ifndef CPPGLTF_FSEEK
-    #define CPPGLTF_FSEEK(f,p,o) fseek((f),(p),(o))
+    #define CPPGLTF_FSEEK(f,p,o) _fseeki64((f),(p),(o))
     #endif
 
     #ifndef CPPGLTF_FTELL
-    #define CPPGLTF_FTELL(f) ftell((f))
+    #define CPPGLTF_FTELL(f) _ftelli64((f))
     #endif
+
+    #ifndef CPPGLTF_SPRINTF
+    #define CPPGLTF_SPRINTF(b,f, ...) sprintf_s(b, f, __VA_ARGS__)
+    #endif
+
+    inline s64 CPPGLTF_FSIZE(FILE* file)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file);
+        struct _stat64 stat;
+        return (0 == _fstat64(_fileno(file), &stat))? stat.st_size : 0;
+    }
+
+    inline FILE* CPPGLTF_FOPEN(const Char* filepath, const Char* mode)
+    {
+        FILE* file = CPPGLTF_NULL;
+        return 0 == ::fopen_s(&file, filepath, mode) ? file : CPPGLTF_NULL;
+    }
+
+    inline void CPPGLTF_FCLOSE(FILE*& file)
+    {
+        if(CPPGLTF_NULL != file){
+            fclose(file);
+            file = CPPGLTF_NULL;
+        }
+    }
 
 #else
 #ifndef CPPGLTF_OFF_T
 #define CPPGLTF_OFF_T
-    typedef s32 off_t;
+    typedef s64 off_t;
 #endif
 
     #ifndef CPPGLTF_FSEEK
-    #define CPPGLTF_FSEEK(f,p,o) fseek((f),(p),(o))
+    #define CPPGLTF_FSEEK(f,p,o) fseeko64((f),(p),(o))
     #endif
 
     #ifndef CPPGLTF_FTELL
-    #define CPPGLTF_FTELL(f) ftell((f))
+    #define CPPGLTF_FTELL(f) ftello64((f))
     #endif
+
+    inline s64 CPPGLTF_FSIZE(FILE* file)
+    {
+        CPPGLTF_ASSERT(CPPGLTF_NULL != file);
+        struct stat64 stat;
+        return (0 == fstat64(fileno(file), &stat))? stat.st_size : 0;
+    }
+
+    inline FILE* CPPGLTF_FOPEN(const Char* filepath, const Char* mode)
+    {
+        return fopen(filepath, mode);
+    }
+
+    inline void CPPGLTF_FCLOSE(FILE*& file)
+    {
+        if(CPPGLTF_NULL != file){
+            fclose(file);
+            file = CPP_NULL;
+        }
+    }
 #endif
 
 #endif//CPPGLTF_TYPES
@@ -125,10 +174,6 @@ namespace cppgltf
 
 #ifndef CPPGLTF_PLACEMENT_NEW
 #define CPPGLTF_PLACEMENT_NEW(ptr) new(ptr)
-#endif
-
-#ifndef CPPGLTF_ASSERT
-#define CPPGLTF_ASSERT(exp) assert(exp)
 #endif
 
     template<class T>
@@ -580,7 +625,7 @@ namespace cppgltf
         virtual bool valid() const;
         virtual bool seek(off_t pos, s32 whence);
         virtual off_t tell();
-
+        virtual s64 size() const;
     protected:
         FStream(const FStream&) = delete;
         FStream& operator=(const FStream&) = delete;
@@ -617,17 +662,10 @@ namespace cppgltf
     {
         CPPGLTF_ASSERT(CPPGLTF_NULL != filepath);
         CPPGLTF_ASSERT(CPPGLTF_NULL != mode);
-#ifdef _MSC_VER
-        FILE* file;
-        if(0 != fopen_s(&file, filepath, mode)){
-            return false;
-        }
-#else
-        FILE* file = fopen(filepath, mode);
+        FILE* file = CPPGLTF_FOPEN(filepath, mode);
         if(CPPGLTF_NULL == file){
             return false;
         }
-#endif
         close();
         file_ = file;
         return true;
@@ -636,10 +674,7 @@ namespace cppgltf
     template<class T>
     void FStream<T>::close()
     {
-        if(CPPGLTF_NULL != file_){
-            fclose(file_);
-            file_ = CPPGLTF_NULL;
-        }
+        CPPGLTF_FCLOSE(file_);
     }
 
     template<class T>
@@ -660,6 +695,12 @@ namespace cppgltf
     {
         CPPGLTF_ASSERT(CPPGLTF_NULL != file_);
         return CPPGLTF_FTELL(file_);
+    }
+
+    template<class T>
+    s64 FStream<T>::size() const
+    {
+        return CPPGLTF_FSIZE(file_);
     }
 
     //---------------------------------------------------------------
@@ -4485,15 +4526,7 @@ namespace
         ::memcpy(buff, directory.c_str(), directory.length());
         ::memcpy(buff+directory.length(), uri.c_str(), uri.length());
         buff[length] = '\0';
-
-#ifdef _MSC_VER
-        FILE* file = CPPGLTF_NULL;
-        if(0 != fopen_s(&file, buff, mode)){
-            file = CPPGLTF_NULL;
-        }
-#else
-        FILE* file = fopen(buff, mode);
-#endif
+        FILE* file = CPPGLTF_FOPEN(buff, mode);
         if(buff != buffer){
             CPPGLTF_FREE(buff);
         }
