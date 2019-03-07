@@ -398,7 +398,7 @@ void binary_check_BoomBox(const cppgltf::glTF& gltf)
     }
 }
 
-TEST_CASE("sample BoomBox can be loaded", "[BoomBox]"){
+TEST_CASE("A sample BoomBox can be loaded", "[BoomBox]"){
     static const char* textDir = DATA_ROOT"BoomBox/glTF/";
     static const char* text = DATA_ROOT"BoomBox/glTF/BoomBox.gltf";
     static const char* binary = DATA_ROOT"BoomBox/glTF-Binary/BoomBox.glb";

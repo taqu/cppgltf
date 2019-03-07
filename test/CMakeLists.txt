@@ -17,6 +17,7 @@ set(SOURCES "main.cpp")
 
 set(GLTF_TESTS
     "Box"
+    "BoxTextured"
     "BoomBox")
 
 foreach(GLTF_TEST IN LISTS GLTF_TESTS)

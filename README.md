@@ -14,6 +14,7 @@ Take data for testing from https://github.com/KhronosGroup/glTF-Sample-Models/tr
 | Name | Text | Binary | Embedded |
 | --- | --- | --- | --- |
 | Box | <font color=Green>OK</font> | <font color=Green>OK</font> | <font color=Green>OK</font> |
+| BoxTextured | <font color=Green>OK</font> | <font color=Green>OK</font> | <font color=Green>OK</font> |
 | BoomBox | <font color=Green>OK</font> | <font color=Green>OK</font> | <font color=Green>OK</font> |
 
 # License

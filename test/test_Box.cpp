@@ -57,6 +57,7 @@ void common_check_Box(const cppgltf::glTF& gltf)
         REQUIRE(0 == gltf.meshes_[0].primitives_[0].indices_);
         REQUIRE(cppgltf::GLTF_PRIMITIVE_TRIANGLES == gltf.meshes_[0].primitives_[0].mode_);
         REQUIRE(0 == gltf.meshes_[0].primitives_[0].material_);
+        REQUIRE(0 == gltf.meshes_[0].primitives_[0].indices_);
     }
 
     {//accessors
@@ -66,8 +67,8 @@ void common_check_Box(const cppgltf::glTF& gltf)
         REQUIRE(0 == gltf.accessors_[0].byteOffset_);
         REQUIRE(cppgltf::GLTF_TYPE_UNSIGNED_SHORT == gltf.accessors_[0].componentType_);
         REQUIRE(36 == gltf.accessors_[0].count_);
-        REQUIRE(0 == gltf.accessors_[0].min_[0].ivalue_);
-        REQUIRE(23 == gltf.accessors_[0].max_[0].ivalue_);
+        REQUIRE(0 == gltf.accessors_[0].min_[0].fvalue_);
+        REQUIRE(23 == gltf.accessors_[0].max_[0].cast<cppgltf::s32>());
         REQUIRE(cppgltf::GLTF_TYPE_SCALAR == gltf.accessors_[0].type_);
 
         REQUIRE(1 == gltf.accessors_[1].bufferView_);
@@ -121,11 +122,10 @@ void common_check_Box(const cppgltf::glTF& gltf)
         REQUIRE(34962 == gltf.bufferViews_[1].target_);
     }
     //buffer
-    REQUIRE(648 == gltf.buffers_[0].byteLength_);
     REQUIRE(NULL != gltf.buffers_[0].data_);
 }
 
-TEST_CASE("sample Box can be loaded", "[Box]"){
+TEST_CASE("A sample Box can be loaded", "[Box]"){
     static const char* textDir = DATA_ROOT"Box/glTF/";
     static const char* text = DATA_ROOT"Box/glTF/Box.gltf";
     static const char* binary = DATA_ROOT"Box/glTF-Binary/Box.glb";

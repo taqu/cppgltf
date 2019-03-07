@@ -203,6 +203,7 @@ namespace cppgltf
         u32 u32_;
         f32 f32_;
     };
+
     inline f32 absolute(f32 val)
     {
         UnionU32F32 u;
@@ -1225,9 +1226,12 @@ namespace cppgltf
     //---------------------------------------------------------------
     union Number
     {
-        s32 ivalue_;
-        u32 uivalue_;
-        f32 fvalue_;
+        //s32 ivalue_;
+        //u32 uivalue_;
+        f64 fvalue_;
+
+        template<class T>
+        T cast() const{return static_cast<T>(fvalue_);}
     };
 
     class glTFBase : public JSONEventHandler
@@ -4237,7 +4241,7 @@ namespace
             switch(value.array_[i].type_)
             {
             case JSON_Integer:
-                x[i].ivalue_ = value.array_[i].int_;
+                x[i].fvalue_ = static_cast<f64>(value.array_[i].int_);
                 break;
             case JSON_Float:
                 x[i].fvalue_ = value.array_[i].float_;
@@ -6890,13 +6894,22 @@ namespace
         case GLTF_TYPE_UNSIGNED_BYTE:
         case GLTF_TYPE_SHORT:
         case GLTF_TYPE_UNSIGNED_SHORT:
-            printObjectProperty(key, num, reinterpret_cast<const s32*>(value));
+        {
+            s32 x = static_cast<s32>(value->fvalue_);
+            printObjectProperty(key, num, &x);
+        }
             break;
         case GLTF_TYPE_UNSIGNED_INT:
-            printObjectProperty(key, num, reinterpret_cast<const u32*>(value));
+        {
+            u32 x = static_cast<u32>(value->fvalue_);
+            printObjectProperty(key, num, &x);
+        }
             break;
         case GLTF_TYPE_FLOAT:
-            printObjectProperty(key, num, reinterpret_cast<const f32*>(value));
+        {
+            f32 x = static_cast<f32>(value->fvalue_);
+            printObjectProperty(key, &x);
+        }
             break;
         }
     }
