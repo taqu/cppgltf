@@ -1,8 +1,5 @@
 # cppgltf
-glTF 2.0 reader for C++
-
-# Overview
-The cppgltf is a glTF reader which is made from scratch.
+The cppgltf is a glTF 2.0 reader which is made from scratch.
 
 # Limitations
 * Never support huge files which are over 2 GB.
