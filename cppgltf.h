@@ -44,6 +44,8 @@ put '#define CPPGLTF_IMPLEMENTATION' before including this file to create the im
 #include <cfloat>
 #include <cmath>
 
+#include <functional>
+
 namespace cppgltf
 {
 #ifdef __cplusplus
@@ -919,7 +921,7 @@ namespace cppgltf
     struct Range
     {
         off_t start_;
-        off_t length_;
+        s32 length_;
 
         inline void reset()
         {
@@ -936,7 +938,7 @@ namespace cppgltf
     {
     public:
         RangeStream(IStream* stream, const Range& range);
-        off_t length() const;
+        s32 length() const;
         s32 read(u8* dst);
         s32 readAsString(Char* str);
         s32 readAsString(String& str);
@@ -945,7 +947,7 @@ namespace cppgltf
     private:
         IStream* stream_;
         off_t start_;
-        off_t length_;
+        s32 length_;
     };
 
     //---------------------------------------------------------------
@@ -1845,20 +1847,11 @@ namespace cppgltf
     class glTF
     {
     public:
-        struct SortNode
-        {
-            s32 parent_; ///< parent's index. If this is root, parent_ is -1
-            s32 oldId_; ///< index in a Node array
-            s32 numChildren_; ///< number of children
-            s32 childrenStart_; ///< start index of children
-        };
-
         glTF();
         ~glTF();
 
         void initialize();
         void setDirectory(const Char* directory);
-        void sortNodes();
 
         boolean loadBuffers();
         boolean loadGLBBuffers();
@@ -1879,7 +1872,6 @@ namespace cppgltf
         Array<Material> materials_;
         Array<Mesh> meshes_;
         Array<Node> nodes_;
-        Array<SortNode> sortedNodes_; 
         Array<Sampler> samplers_;
         s32 scene_;
         Array<Scene> scenes_;
@@ -1897,12 +1889,36 @@ namespace cppgltf
         u32 sizeGLB() const;
         const u8* getGLB(u32 offset) const;
         u8* getGLB(u32 offset);
+
+        struct Counter
+        {
+            Counter()
+                :numNodes_(0)
+                ,numCameras_(0)
+                ,numSkins_(0)
+                ,numMeshes_(0)
+                ,numMaterials_(0)
+                ,numTextures_(0)
+            {}
+
+            void operator()(const Node& node, const glTF& gltf);
+
+            s32 numNodes_;
+            s32 numCameras_;
+            s32 numSkins_;
+            s32 numMeshes_;
+            s32 numMaterials_;
+            s32 numTextures_;
+        };
+
+        void traverse(s32 rootScene, std::function<void(const Node&, const glTF&)> func) const;
     private:
         glTF(const glTF&) =delete;
+        glTF(glTF&&) =delete;
         glTF& operator=(const glTF&) =delete;
+        glTF& operator=(glTF&&) =delete;
 
-        static boolean isRoot(s32 node, const Array<Node>& nodes);
-        static void addChildren(s32 parent, Array<SortNode>& dst, const Array<Node>& nodes);
+        void traverseChildren(s32 rootNode, std::function<void(const Node&, const glTF&)> func) const;
 
         u32 size_;
         u8* bin_;
@@ -3011,7 +3027,7 @@ namespace
         CPPGLTF_ASSERT(0<=length_);
     }
 
-    off_t RangeStream::length() const
+    s32 RangeStream::length() const
     {
         return length_;
     }
@@ -3070,7 +3086,7 @@ namespace
             return defaultValue;
         }
         Char buffer[MaxSize];
-        s32 ret = stream_->read(reinterpret_cast<u8*>(buffer), length_);
+        off_t ret = stream_->read(reinterpret_cast<u8*>(buffer), length_);
         if(!stream_->seek(pos)){
             return defaultValue;
         }
@@ -3090,7 +3106,7 @@ namespace
             return defaultValue;
         }
         Char buffer[MaxSize];
-        s32 ret = stream_->read(reinterpret_cast<u8*>(buffer), length_);
+        off_t ret = stream_->read(reinterpret_cast<u8*>(buffer), length_);
         if(!stream_->seek(pos)){
             return defaultValue;
         }
@@ -3186,7 +3202,7 @@ namespace
 
     void JSONReader::setLength(Range& range)
     {
-        range.length_ = istream_.tell()-range.start_-1;
+        range.length_ = static_cast<s32>(istream_.tell()-range.start_-1);
     }
 
     s32 JSONReader::onError()
@@ -4938,7 +4954,6 @@ namespace
         materials_.clear();
         meshes_.clear();
         nodes_.clear();
-        sortedNodes_.clear();
         samplers_.clear();
         scene_ = 0;
         scenes_.clear();
@@ -4961,58 +4976,6 @@ namespace
         directory_.assign(len, directory);
         if('/' != directory[len-1]){
             directory_.push_back('/');
-        }
-    }
-
-    void glTF::sortNodes()
-    {
-        sortedNodes_.clear();
-        sortedNodes_.reserve(nodes_.size());
-
-        //add root nodes
-        for(s32 i=0; i<nodes_.size(); ++i){
-            if(isRoot(i, nodes_)){
-                SortNode n;
-                n.oldId_ = i;
-                n.parent_ = -1;
-                n.numChildren_ = 0;
-                n.childrenStart_ = -1;
-                sortedNodes_.push_back(n);
-            }
-        }
-
-        //By the glTF specification, a node hierarchy must be a strict tree.
-        //So this algorithm works, and will end sometime.
-        for(s32 i=0; i<sortedNodes_.size(); ++i){
-            addChildren(i, sortedNodes_, nodes_);
-        }
-   }
-
-    boolean glTF::isRoot(s32 node, const Array<Node>& nodes)
-    {
-        for(s32 i=0; i<nodes.size(); ++i){
-            for(s32 j=0; j<nodes[i].children_.size(); ++j){
-                if(node == nodes[i].children_[j]){
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    void glTF::addChildren(s32 parent, Array<SortNode>& dst, const Array<Node>& nodes)
-    {
-        const Node& parentNode = nodes[dst[parent].oldId_];
-        dst[parent].childrenStart_ = dst.size();
-        dst[parent].numChildren_ = parentNode.children_.size();
-        //add children
-        for(s32 i=0; i<parentNode.children_.size(); ++i){
-            SortNode n;
-            n.oldId_ = parentNode.children_[i];
-            n.parent_ = parent;
-            n.numChildren_ = nodes[n.oldId_].children_.size();
-            n.childrenStart_ = -1;
-            dst.push_back(n);
         }
     }
 
@@ -5173,6 +5136,68 @@ namespace
         return glbBin_+offset;
     }
 
+    void glTF::traverse(s32 rootScene, std::function<void(const Node&, const glTF&)> func) const
+    {
+        const Scene& scene = scenes_[rootScene];
+        for(s32 i = 0; i<scene.nodes_.size(); ++i){
+            traverseChildren(scene.nodes_[i], func);
+        }
+    }
+
+    void glTF::traverseChildren(s32 rootNode, std::function<void(const Node&, const glTF&)> func) const
+    {
+        //Go down to descendants
+        const Node& node = nodes_[rootNode];
+        func(node, *this);
+        for(s32 i = 0; i<node.children_.size(); ++i){
+            traverseChildren(node.children_[i], func);
+        }
+    }
+
+    void glTF::Counter::operator()(const Node& node, const glTF& gltf)
+    {
+        numNodes_ += node.children_.size();
+
+        if(0<=node.camera_){
+            ++numCameras_;
+        }
+        if(0<=node.skin_){
+            ++numSkins_;
+        }
+        if(0<=node.mesh_){
+            ++numMeshes_;
+
+            const Mesh& mesh = gltf.meshes_[node.mesh_];
+            numMaterials_ += mesh.primitives_.size();
+
+            //Count textures
+            for(s32 i = 0; i<mesh.primitives_.size(); ++i){
+                const Primitive& primitive = mesh.primitives_[i];
+                if(0<=primitive.material_){
+                    const Material& material = gltf.materials_[primitive.material_];
+                    if(0<=material.pbrMetallicRoughness_.baseColorTexture_.index_){
+                        ++numTextures_;
+                    }
+                    if(0<=material.pbrMetallicRoughness_.baseColorTexture_.index_){
+                        ++numTextures_;
+                    }
+                    if(0<=material.pbrMetallicRoughness_.metallicRoughnessTexture_.index_){
+                        ++numTextures_;
+                    }
+                    if(0<=material.normalTexture_.index_){
+                        ++numTextures_;
+                    }
+                    if(0<=material.occlusionTexture_.index_){
+                        ++numTextures_;
+                    }
+                    if(0<=material.emissiveTexture_.index_){
+                        ++numTextures_;
+                    }
+                }//if(0<=primitive
+            }//for(s32 i
+        }//if(0<=node.mesh_)
+    }
+
     //---------------------------------------------------------------
     //---
     //--- glTFHandler
@@ -5302,8 +5327,6 @@ namespace
             }
         }
 
-        //Topological sorting nodes
-        gltf_.sortNodes();
         gltf_.loadBuffers();
     }
 
@@ -6397,7 +6420,7 @@ namespace
     {
         flags_ = flags;
         Header header;
-        s32 pos;
+        off_t pos;
         u32 size;
         if(istream_.read(header)<=0){
             return false;
@@ -6425,7 +6448,7 @@ namespace
     {
         size = 0;
         u32 type;
-        s32 pos = istream_.tell();
+        off_t pos = istream_.tell();
         for(;;){
             if(istream_.read(size)<=0){
                 return false;
@@ -6452,7 +6475,7 @@ namespace
     {
         size = 0;
         u32 type;
-        s32 pos = istream_.tell();
+        off_t pos = istream_.tell();
         for(;;){
             if(istream_.read(size)<=0){
                 return false;
