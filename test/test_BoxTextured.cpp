@@ -114,6 +114,8 @@ void common_check_BoxTextured(const cppgltf::glTF& gltf)
     {//materials
         REQUIRE(1 == gltf.materials_.size());
 
+        REQUIRE(0 == gltf.materials_[0].pbrMetallicRoughness_.baseColorTexture_.index_);
+        REQUIRE(0 == gltf.materials_[0].pbrMetallicRoughness_.baseColorTexture_.texCoord_);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[0]);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[1]);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[2]);
@@ -145,9 +147,11 @@ void common_check_BoxTextured(const cppgltf::glTF& gltf)
         REQUIRE(8 == gltf.bufferViews_[2].byteStride_);
         REQUIRE(34962 == gltf.bufferViews_[2].target_);
     }
-    //buffers
-    REQUIRE(840 == gltf.buffers_[0].byteLength_);
-    REQUIRE(NULL != gltf.buffers_[0].data_);
+
+    {//buffers
+        REQUIRE(840 == gltf.buffers_[0].byteLength_);
+        REQUIRE(NULL != gltf.buffers_[0].data_);
+    }
 }
 
 void binary_check_BoxTextured(const cppgltf::glTF& gltf)
@@ -214,12 +218,6 @@ void binary_check_BoxTextured(const cppgltf::glTF& gltf)
         REQUIRE(0 == gltf.meshes_[0].primitives_[0].material_);
     }
 
-    //{"bufferView":0, "byteOffset":0, "componentType":5123, "count":36, "max":[23], "min":[0], "type":"SCALAR"},
-    //{"bufferView":1,"byteOffset":0,"componentType":5126,"count":24,"max":[1,1,1],"min":[-1,-1,-1],"type":"VEC3"},
-    //{"bufferView":1,"byteOffset":288,"componentType":5126,"count":24,"max":[0.5,0.5,0.5],"min":[-0.5,-0.5,-0.5],"type":"VEC3"},
-    //{"bufferView":2,"byteOffset":0,"componentType":5126,"count":24,"max":[6,1],"min":[0,0],"type":"VEC2"}],
-
-
     {//accessors
         REQUIRE(4 == gltf.accessors_.size());
 
@@ -269,6 +267,8 @@ void binary_check_BoxTextured(const cppgltf::glTF& gltf)
     {//materials
         REQUIRE(1 == gltf.materials_.size());
 
+        REQUIRE(0 == gltf.materials_[0].pbrMetallicRoughness_.baseColorTexture_.index_);
+        REQUIRE(0 == gltf.materials_[0].pbrMetallicRoughness_.baseColorTexture_.texCoord_);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[0]);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[1]);
         REQUIRE(Approx(1.0f) == gltf.materials_[0].pbrMetallicRoughness_.baseColorFactor_[2]);

@@ -278,6 +278,8 @@ namespace cppgltf
 
         friend boolean operator==(const String& lhs, const Char* rhs);
         friend boolean operator==(const Char* lhs, const String& rhs);
+        friend boolean operator!=(const String& lhs, const Char* rhs);
+        friend boolean operator!=(const Char* lhs, const String& rhs);
     private:
         static inline s32 getCapacity(s32 capacity)
         {
@@ -1896,26 +1898,57 @@ namespace cppgltf
 
         struct Counter
         {
-            Counter()
-                :numNodes_(0)
-                ,numCameras_(0)
-                ,numSkins_(0)
-                ,numMeshes_(0)
-                ,numMaterials_(0)
-                ,numTextures_(0)
-            {}
+            Counter(s32& numNodes,
+                    s32& numCameras,
+                    s32& numSkins,
+                    s32& numMeshes,
+                    s32& numPrimitives,
+                    s32& numMaterials,
+                    s32& numTextures)
+                :numNodes_(numNodes)
+                ,numCameras_(numCameras)
+                ,numSkins_(numSkins)
+                ,numMeshes_(numMeshes)
+                ,numPrimitives_(numPrimitives)
+                ,numMaterials_(numMaterials)
+                ,numTextures_(numTextures)
+            {
+                numNodes_ = 0;
+                numCameras_ = 0;
+                numSkins_ = 0;
+                numMeshes_ = 0;
+                numPrimitives_ = 0;
+                numMaterials_ = 0;
+                numTextures_ = 0; 
+            }
 
             void operator()(const Node& node, const glTF& gltf);
 
-            s32 numNodes_;
-            s32 numCameras_;
-            s32 numSkins_;
-            s32 numMeshes_;
-            s32 numMaterials_;
-            s32 numTextures_;
+            s32& numNodes_;
+            s32& numCameras_;
+            s32& numSkins_;
+            s32& numMeshes_;
+            s32& numPrimitives_;
+            s32& numMaterials_;
+            s32& numTextures_;
         };
 
         void traverse(s32 rootScene, std::function<void(const Node&, const glTF&)> func) const;
+
+        struct SortNode
+        {
+            s32 parent_; ///< Parent's index. If root, it's -1.
+            s32 oldId_; ///< Index in a Node array.
+            s32 numChildren_; ///< Number of children.
+            s32 childrenStart_; ///< Start index of children.
+        };
+
+        /**
+        @pre The size of nodes is larger than or equal to the size glTF::nodes_.
+        */
+        void getSortedNodes(SortNode* nodes) const;
+        static boolean glTF::isRoot(s32 node, const Array<Node>& nodes);
+        static s32 addChildren(s32 parent, s32 dstSize, SortNode* dst, const Array<Node>& nodes);
     private:
         glTF(const glTF&) =delete;
         glTF(glTF&&) =delete;
@@ -2518,6 +2551,8 @@ namespace
         CPPGLTF_ASSERT(0<=length);
         reserve(length+1);
         length_ = length;
+        Char* buffer = getBuffer();
+        buffer[length_] = '\0';
     }
 
     void String::reserve(s32 capacity)
@@ -2674,7 +2709,19 @@ namespace
     boolean operator==(const Char* lhs, const String& rhs)
     {
         s32 len = static_cast<s32>(::strlen(lhs));
-        return (len == rhs.length())? (0 == ::strncmp(lhs, rhs.c_str(), len)) : false;
+        return (rhs.length() == len)? (0 == ::strncmp(lhs, rhs.c_str(), len)) : false;
+    }
+
+    boolean operator!=(const String& lhs, const Char* rhs)
+    {
+        s32 len = static_cast<s32>(::strlen(rhs));
+        return (lhs.length() == len)? (0 != ::strncmp(lhs.c_str(), rhs, len)) : true;
+    }
+
+    boolean operator!=(const Char* lhs, const String& rhs)
+    {
+        s32 len = static_cast<s32>(::strlen(lhs));
+        return (rhs.length() == len)? (0 != ::strncmp(lhs, rhs.c_str(), len)) : true;
     }
 
     //---------------------------------------------------------------
@@ -5140,7 +5187,7 @@ namespace
         return glbBin_+offset;
     }
 
-    void glTF::traverse(s32 rootScene, std::function<void(const Node&, const glTF&)> func) const
+    void glTF::traverse(s32 rootScene, std::function<void(const Node&, const glTF&)>func) const
     {
         const Scene& scene = scenes_[rootScene];
         for(s32 i = 0; i<scene.nodes_.size(); ++i){
@@ -5172,34 +5219,87 @@ namespace
             ++numMeshes_;
 
             const Mesh& mesh = gltf.meshes_[node.mesh_];
-            numMaterials_ += mesh.primitives_.size();
+            numPrimitives_ += mesh.primitives_.size();
 
             //Count textures
             for(s32 i = 0; i<mesh.primitives_.size(); ++i){
                 const Primitive& primitive = mesh.primitives_[i];
-                if(0<=primitive.material_){
-                    const Material& material = gltf.materials_[primitive.material_];
-                    if(0<=material.pbrMetallicRoughness_.baseColorTexture_.index_){
-                        ++numTextures_;
-                    }
-                    if(0<=material.pbrMetallicRoughness_.baseColorTexture_.index_){
-                        ++numTextures_;
-                    }
-                    if(0<=material.pbrMetallicRoughness_.metallicRoughnessTexture_.index_){
-                        ++numTextures_;
-                    }
-                    if(0<=material.normalTexture_.index_){
-                        ++numTextures_;
-                    }
-                    if(0<=material.occlusionTexture_.index_){
-                        ++numTextures_;
-                    }
-                    if(0<=material.emissiveTexture_.index_){
-                        ++numTextures_;
-                    }
-                }//if(0<=primitive
+                if(primitive.material_<0){
+                    continue;
+                }
+                ++numMaterials_;
+                const Material& material = gltf.materials_[primitive.material_];
+                if(0 <= material.pbrMetallicRoughness_.baseColorTexture_.index_) {
+                    ++numTextures_;
+                }
+                if(0 <= material.pbrMetallicRoughness_.baseColorTexture_.index_) {
+                    ++numTextures_;
+                }
+                if(0 <= material.pbrMetallicRoughness_.metallicRoughnessTexture_.index_) {
+                    ++numTextures_;
+                }
+                if(0 <= material.normalTexture_.index_) {
+                    ++numTextures_;
+                }
+                if(0 <= material.occlusionTexture_.index_) {
+                    ++numTextures_;
+                }
+                if(0 <= material.emissiveTexture_.index_) {
+                    ++numTextures_;
+                }
             }//for(s32 i
         }//if(0<=node.mesh_)
+    }
+
+    void glTF::getSortedNodes(SortNode* nodes) const
+    {
+        //add root nodes
+        s32 rootCount=0;
+        for(s32 i=0; i<nodes_.size(); ++i){
+            if(isRoot(i, nodes_)){
+                nodes[rootCount].oldId_ = i;
+                nodes[rootCount].parent_ = -1;
+                nodes[rootCount].numChildren_ = 0;
+                nodes[rootCount].childrenStart_ = -1;
+                ++rootCount;
+            }
+        }
+
+        //By the glTF specification, a node hierarchy must be a strict tree.
+        //So this algorithm works, and will end sometime.
+        s32 count = rootCount;
+        for(s32 i=0; i<rootCount; ++i){
+            count = addChildren(i, count, nodes, nodes_);
+        }
+    }
+
+    boolean glTF::isRoot(s32 node, const Array<Node>& nodes)
+    {
+        for(s32 i=0; i<nodes.size(); ++i){
+            for(s32 j=0; j<nodes[i].children_.size(); ++j){
+                if(node == nodes[i].children_[j]){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    s32 glTF::addChildren(s32 parent, s32 dstSize, SortNode* dst, const Array<Node>& nodes)
+    {
+        const Node& parentNode = nodes[dst[parent].oldId_];
+        dst[parent].childrenStart_ = dstSize;
+        dst[parent].numChildren_ = parentNode.children_.size();
+        //add children
+        for(s32 i=0; i<parentNode.children_.size(); ++i){
+            SortNode& n = dst[dstSize];
+            n.oldId_ = parentNode.children_[i];
+            n.parent_ = parent;
+            n.numChildren_ = nodes[n.oldId_].children_.size();
+            n.childrenStart_ = -1;
+            ++dstSize;
+        }
+        return dstSize;
     }
 
     //---------------------------------------------------------------
