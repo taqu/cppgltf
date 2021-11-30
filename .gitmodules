@@ -1,0 +1,4 @@
+[submodule "test/JSONTestSuite"]
+	path = test/JSONTestSuite
+	url = https://github.com/nst/JSONTestSuite.git
+	branch = master
